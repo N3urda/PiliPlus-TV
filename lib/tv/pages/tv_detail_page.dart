@@ -3,6 +3,8 @@ import 'package:PiliPlus/http/video.dart';
 import 'package:PiliPlus/models_new/video/video_detail/data.dart';
 import 'package:PiliPlus/models_new/video/video_detail/page.dart';
 import 'package:PiliPlus/tv/widgets/tv_action.dart';
+import 'package:PiliPlus/utils/duration_utils.dart';
+import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
@@ -113,6 +115,19 @@ class _TvDetailPageState extends State<TvDetailPage> {
   Widget _buildContent(VideoDetailData video) {
     final parts = video.pages ?? [];
     final cover = video.pic;
+    final published = video.pubdate == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(video.pubdate! * 1000);
+    final facts = [
+      if (video.stat?.view case final views? when views > 0)
+        '${NumUtils.numFormat(views)}播放',
+      if (video.stat?.danmaku case final danmaku? when danmaku > 0)
+        '${NumUtils.numFormat(danmaku)}弹幕',
+      if (video.duration case final duration? when duration > 0)
+        '时长 ${DurationUtils.formatDuration(duration)}',
+      if (published != null)
+        '${published.year}-${published.month.toString().padLeft(2, '0')}-${published.day.toString().padLeft(2, '0')}',
+    ];
     return ListView(
       children: [
         Row(
@@ -152,7 +167,17 @@ class _TvDetailPageState extends State<TvDetailPage> {
                     video.owner?.name ?? '',
                     style: const TextStyle(fontSize: 19),
                   ),
-                  const SizedBox(height: 18),
+                  if (facts.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      facts.join('   ·   '),
+                      style: const TextStyle(
+                        fontSize: 17,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
                   Text(
                     video.desc ?? '',
                     maxLines: 4,

@@ -2,6 +2,7 @@ import 'package:PiliPlus/http/video.dart';
 import 'package:PiliPlus/models/model_video.dart';
 import 'package:PiliPlus/tv/tv_feed_loader.dart';
 import 'package:PiliPlus/tv/widgets/tv_action.dart';
+import 'package:PiliPlus/tv/widgets/tv_feature_banner.dart';
 import 'package:PiliPlus/tv/widgets/tv_video_card.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:material_ui/material_ui.dart';
@@ -15,7 +16,7 @@ class TvHomePage extends StatefulWidget {
 }
 
 class _TvHomePageState extends State<TvHomePage> {
-  final firstVideoFocus = FocusNode();
+  final featuredVideoFocus = FocusNode();
   List<BaseVideoItemModel> recommended = [];
   List<BaseVideoItemModel> popular = [];
   bool loading = false;
@@ -31,7 +32,7 @@ class _TvHomePageState extends State<TvHomePage> {
 
   @override
   void dispose() {
-    firstVideoFocus.dispose();
+    featuredVideoFocus.dispose();
     super.dispose();
   }
 
@@ -63,7 +64,7 @@ class _TvHomePageState extends State<TvHomePage> {
           (recommended.isNotEmpty || popular.isNotEmpty)) {
         initialFocusPending = false;
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) firstVideoFocus.requestFocus();
+          if (mounted) featuredVideoFocus.requestFocus();
         });
       }
     } catch (e) {
@@ -78,11 +79,14 @@ class _TvHomePageState extends State<TvHomePage> {
   @override
   Widget build(BuildContext context) {
     final hasVideos = recommended.isNotEmpty || popular.isNotEmpty;
+    final featured = popular.isNotEmpty
+        ? popular.first
+        : recommended.firstOrNull;
     return Scaffold(
       backgroundColor: const Color(0xFF10181C),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(54, 28, 54, 24),
+          padding: const EdgeInsets.fromLTRB(48, 18, 48, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -120,7 +124,7 @@ class _TvHomePageState extends State<TvHomePage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 18),
               Expanded(
                 child: loading && !hasVideos
                     ? const Center(child: CircularProgressIndicator())
@@ -157,26 +161,26 @@ class _TvHomePageState extends State<TvHomePage> {
                                 ),
                               ),
                             ),
+                          if (featured != null) ...[
+                            TvFeatureBanner(
+                              video: featured,
+                              focusNode: featuredVideoFocus,
+                              label: popular.isNotEmpty ? '正在热播' : '为你推荐',
+                            ),
+                            const SizedBox(height: 18),
+                          ],
                           if (recommended.isNotEmpty)
                             TvVideoRow(
                               title: '为你推荐',
                               videos: recommended,
-                              firstFocusNode: firstVideoFocus,
                             ),
-                          if (popular.isNotEmpty)
+                          if (popular.length > 1)
                             TvVideoRow(
                               title: '热门视频',
-                              videos: popular,
-                              firstFocusNode: recommended.isEmpty
-                                  ? firstVideoFocus
-                                  : null,
+                              videos: popular.skip(1).toList(),
                             ),
                         ],
                       ),
-              ),
-              const Text(
-                '方向键选择   ·   确认键打开   ·   返回键退出',
-                style: TextStyle(fontSize: 14, color: Colors.white54),
               ),
             ],
           ),
@@ -191,37 +195,48 @@ class TvVideoRow extends StatelessWidget {
     super.key,
     required this.title,
     required this.videos,
-    this.firstFocusNode,
   });
 
   final String title;
   final List<BaseVideoItemModel> videos;
-  final FocusNode? firstFocusNode;
-
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        title,
-        style: const TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
-      ),
-      const SizedBox(height: 14),
-      SizedBox(
-        height: 248,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          itemCount: videos.length,
-          separatorBuilder: (_, _) => const SizedBox(width: 18),
-          itemBuilder: (context, index) => TvVideoCard(
-            video: videos[index],
-            focusNode: index == 0 ? firstFocusNode : null,
+  Widget build(BuildContext context) {
+    final availableWidth = MediaQuery.sizeOf(context).width - 96;
+    final cardWidth = ((availableWidth - 42) / 4).clamp(178.0, 245.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              title,
+              style: const TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              '${videos.length} 条视频',
+              style: const TextStyle(fontSize: 14, color: Colors.white60),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 207,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: videos.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 14),
+            itemBuilder: (context, index) => TvVideoCard(
+              video: videos[index],
+              width: cardWidth,
+              compact: true,
+            ),
           ),
         ),
-      ),
-      const SizedBox(height: 28),
-    ],
-  );
+        const SizedBox(height: 18),
+      ],
+    );
+  }
 }
 
 class _HeaderAction extends StatelessWidget {

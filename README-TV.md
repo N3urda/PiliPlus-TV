@@ -2,19 +2,20 @@
 
 This fork is an Android TV video-only prototype based on [PiliPlus](https://github.com/bggRGjQaUbCoE/PiliPlus). It retains the upstream GPL-3.0 license and uses its network, account and playback modules.
 
-## Included in v0.1.1
+## Included in v0.2.0
 
 - Android TV launcher entry, landscape UI and D-pad focus navigation.
 - Recommended and popular videos, video-only search, video detail and episode selection.
 - Bilibili HD QR sign-in, using the existing account store.
 - Existing PiliPlus video player with TV remote controls: Select/Enter toggles playback, Left/Right seek, Up/Down show controls, media next/previous switch episodes, Back returns.
 - TV defaults to a clear video picture without danmaku; users can turn it on in player settings. The first video takes focus when feeds load, and refreshing feeds keeps existing cards visible while loading.
+- A featured video now shows title, creator, views, duration and available description; compact home rows show about four covers on a 1080p TV. Search shows three result columns, and detail pages show more video facts. See [TV home design](docs/tv-home-redesign.md).
 
 The TV home screen does not expose live streams, comics, articles, social feeds or downloads. Search is limited to videos.
 
 ## Install
 
-Download `PiliPlus-TV-v0.1.1-test.apk` from the Android TV test APK workflow artifact or the tagged test release. Install with `adb install PiliPlus-TV-v0.1.1-test.apk`, or sideload it from a USB drive. The package ID is `com.n3urda.piliplustv`, so it can coexist with the upstream mobile app. The test APK uses a temporary debug signing key; uninstall an earlier test build if Android reports a signature mismatch. Uninstalling removes this app's data.
+Download `PiliPlus-TV-v0.2.0-test.apk` from the Android TV test APK workflow artifact or the tagged test release. Install with `adb install PiliPlus-TV-v0.2.0-test.apk`, or sideload it from a USB drive. The package ID is `com.n3urda.piliplustv`, so it can coexist with the upstream mobile app. The test APK uses a temporary debug signing key; uninstall an earlier test build if Android reports a signature mismatch. Uninstalling removes this app's data.
 
 ## TV behavior
 

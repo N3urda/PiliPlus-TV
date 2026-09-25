@@ -159,6 +159,7 @@ class _TvSearchPageState extends State<TvSearchPage> {
                         for (var index = 0; index < results.length; index++)
                           TvVideoCard(
                             video: results[index],
+                            width: 250,
                             focusNode: index == 0 ? firstResultFocus : null,
                           ),
                       ],
