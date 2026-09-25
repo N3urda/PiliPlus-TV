@@ -103,6 +103,9 @@ void main() async {
     exit(0);
   }
   if (TvMode.enabled) {
+    PaintingBinding.instance.imageCache
+      ..maximumSizeBytes = 48 << 20
+      ..maximumSize = 120;
     await GStorage.setting.put(SettingBoxKey.horizontalScreen, true);
     await GStorage.setting.put(SettingBoxKey.autoPlayEnable, true);
     await GStorage.setting.put(SettingBoxKey.enableAutoEnter, true);

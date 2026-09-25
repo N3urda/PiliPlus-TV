@@ -1,5 +1,6 @@
 import 'package:PiliPlus/tv/tv_video_entry.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/services.dart';
 
 class TvVideoGrid extends StatelessWidget {
@@ -27,6 +28,7 @@ class TvVideoGrid extends StatelessWidget {
           ? 5
           : 4;
       return GridView.builder(
+        scrollCacheExtent: const ScrollCacheExtent.pixels(128),
         padding: const EdgeInsets.fromLTRB(3, 3, 3, 14),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: columns,

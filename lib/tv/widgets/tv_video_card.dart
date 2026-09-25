@@ -57,7 +57,7 @@ class TvVideoCard extends StatelessWidget {
                         : Image.network(
                             url,
                             fit: BoxFit.cover,
-                            cacheWidth: 600,
+                            cacheWidth: 560,
                             errorBuilder: (_, _, _) =>
                                 const Icon(Icons.movie_outlined, size: 64),
                           ),

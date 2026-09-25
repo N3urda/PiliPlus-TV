@@ -3,7 +3,7 @@ import 'package:PiliPlus/http/search.dart';
 import 'package:PiliPlus/models/common/search/search_type.dart';
 import 'package:PiliPlus/models/search/result.dart';
 import 'package:PiliPlus/tv/widgets/tv_action.dart';
-import 'package:PiliPlus/tv/widgets/tv_video_card.dart';
+import 'package:PiliPlus/tv/widgets/tv_search_results.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 
@@ -145,38 +145,12 @@ class _TvSearchPageState extends State<TvSearchPage> {
               )
             else
               Expanded(
-                child: ListView(
-                  children: [
-                    Text(
-                      '搜索结果 · 共 $total 条',
-                      style: const TextStyle(fontSize: 20),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 16,
-                      runSpacing: 18,
-                      children: [
-                        for (var index = 0; index < results.length; index++)
-                          TvVideoCard(
-                            video: results[index],
-                            width: 250,
-                            focusNode: index == 0 ? firstResultFocus : null,
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    if (results.length < total)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TvAction(
-                          onPressed: () => search(more: true),
-                          child: Text(
-                            loading ? '加载中…' : '加载更多',
-                            style: const TextStyle(fontSize: 21),
-                          ),
-                        ),
-                      ),
-                  ],
+                child: TvSearchResults(
+                  results: results,
+                  total: total,
+                  loading: loading,
+                  onLoadMore: () => search(more: true),
+                  firstResultFocus: firstResultFocus,
                 ),
               ),
           ],
