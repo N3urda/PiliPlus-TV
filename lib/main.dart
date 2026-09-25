@@ -15,6 +15,8 @@ import 'package:PiliPlus/services/account_service.dart';
 import 'package:PiliPlus/services/download/download_service.dart';
 import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/services/service_locator.dart';
+import 'package:PiliPlus/tv/tv_mode.dart';
+import 'package:PiliPlus/tv/tv_routes.dart';
 import 'package:PiliPlus/utils/cache_manager.dart';
 import 'package:PiliPlus/utils/calc_window_position.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
@@ -100,6 +102,14 @@ void main() async {
     if (kDebugMode) debugPrint('GStorage init error: $e');
     exit(0);
   }
+  if (TvMode.enabled) {
+    await GStorage.setting.put(SettingBoxKey.horizontalScreen, true);
+    await GStorage.setting.put(SettingBoxKey.autoPlayEnable, true);
+    await GStorage.setting.put(SettingBoxKey.enableAutoEnter, true);
+    await GStorage.setting.put(SettingBoxKey.keyboardControl, true);
+    await GStorage.setting.put(SettingBoxKey.showVideoReply, false);
+    await GStorage.setting.put(SettingBoxKey.showRelatedVideo, false);
+  }
   ScaledWidgetsFlutterBinding.instance.scaleFactor = Pref.uiScale;
   await Future.wait([
     _initDownPath(),
@@ -115,7 +125,12 @@ void main() async {
   if (PlatformUtils.isMobile) {
     if (Platform.isAndroid) MaxScreenSize.init();
     await Future.wait([
-      if (Pref.horizontalScreen) ?fullMode() else ?portraitUpMode(),
+      if (TvMode.enabled)
+        ?landscapeLeftMode()
+      else if (Pref.horizontalScreen)
+        ?fullMode()
+      else
+        ?portraitUpMode(),
       setupServiceLocator(),
     ]);
   } else if (Platform.isWindows) {
@@ -137,7 +152,9 @@ void main() async {
   SmartDialog.config.toast = SmartConfigToast(displayType: .onlyRefresh);
 
   if (PlatformUtils.isMobile) {
-    SystemChrome.setEnabledSystemUIMode(.edgeToEdge);
+    SystemChrome.setEnabledSystemUIMode(
+      TvMode.enabled ? .immersiveSticky : .edgeToEdge,
+    );
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         systemNavigationBarColor: Colors.transparent,
@@ -282,16 +299,18 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final (light, dark) = getAllTheme();
     return GetMaterialApp(
-      title: Constants.appName,
+      title: TvMode.enabled ? 'PiliPlus TV' : Constants.appName,
       theme: light,
       darkTheme: dark,
-      themeMode: ThemeUtils.themeMode = Pref.themeMode,
+      themeMode: ThemeUtils.themeMode = TvMode.enabled
+          ? ThemeMode.dark
+          : Pref.themeMode,
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       locale: const Locale("zh", "CN"),
       fallbackLocale: const Locale("zh", "CN"),
       supportedLocales: const [Locale("zh", "CN"), Locale("en", "US")],
       initialRoute: '/',
-      getPages: Routes.getPages,
+      getPages: TvMode.enabled ? TvRoutes.pages : Routes.getPages,
       defaultTransition: Pref.pageTransition,
       builder: FlutterSmartDialog.init(
         toastBuilder: CustomToast.new,

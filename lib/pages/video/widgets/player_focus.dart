@@ -5,6 +5,8 @@ import 'dart:math' as math;
 import 'package:PiliPlus/pages/common/common_intro_controller.dart';
 import 'package:PiliPlus/pages/video/introduction/ugc/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
+import 'package:PiliPlus/tv/tv_mode.dart';
+import 'package:PiliPlus/tv/tv_remote.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
@@ -86,6 +88,48 @@ class PlayerFocus extends StatelessWidget {
   }
 
   bool _handleKey(BuildContext context, KeyEvent event) {
+    if (TvMode.enabled) {
+      final action = tvPlaybackAction(event.logicalKey);
+      if (action != null) {
+        if (event is KeyDownEvent) {
+          switch (action) {
+            case TvPlaybackAction.toggle:
+              if (hasPlayer &&
+                  (plPlayerController.isLive || (canPlay?.call() ?? true))) {
+                plPlayerController.onDoubleTapCenter();
+              }
+            case TvPlaybackAction.seekBack:
+              if (hasPlayer && !plPlayerController.isLive) {
+                plPlayerController.onBackward(
+                  plPlayerController.fastForBackwardDuration,
+                );
+                plPlayerController.controls = true;
+              }
+            case TvPlaybackAction.seekForward:
+              if (hasPlayer && !plPlayerController.isLive) {
+                plPlayerController.onForward(
+                  plPlayerController.fastForBackwardDuration,
+                );
+                plPlayerController.controls = true;
+              }
+            case TvPlaybackAction.showControls:
+              plPlayerController.controls = true;
+          }
+        }
+        return true;
+      }
+      if (event is KeyDownEvent) {
+        if (event.logicalKey == LogicalKeyboardKey.mediaTrackNext) {
+          introController?.nextPlay();
+          return true;
+        }
+        if (event.logicalKey == LogicalKeyboardKey.mediaTrackPrevious) {
+          introController?.prevPlay();
+          return true;
+        }
+      }
+      return false;
+    }
     final key = event.logicalKey;
 
     final isKeyQ = key == LogicalKeyboardKey.keyQ;
