@@ -55,6 +55,7 @@ import 'package:PiliPlus/plugin/pl_player/view/view.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/services/shutdown_timer_service.dart'
     show shutdownTimerService;
+import 'package:PiliPlus/tv/tv_mode.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/android/bindings.g.dart';
 import 'package:PiliPlus/utils/extension/scroll_controller_ext.dart';
@@ -1201,9 +1202,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   }) => popScope(
     key: videoDetailController.videoPlayerKey,
     canPop:
-        !isFullScreen &&
-        !videoDetailController.plPlayerController.isDesktopPip &&
-        (videoDetailController.horizontalScreen || isPortrait),
+        TvMode.enabled ||
+        (!isFullScreen &&
+            !videoDetailController.plPlayerController.isDesktopPip &&
+            (videoDetailController.horizontalScreen || isPortrait)),
     onPopInvokedWithResult:
         videoDetailController.plPlayerController.onPopInvokedWithResult,
     child: Obx(

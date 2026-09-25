@@ -16,6 +16,7 @@ class TvSearchPage extends StatefulWidget {
 
 class _TvSearchPageState extends State<TvSearchPage> {
   final textController = TextEditingController();
+  final firstResultFocus = FocusNode();
   List<SearchVideoItemModel> results = [];
   String keyword = '';
   String? error;
@@ -25,6 +26,7 @@ class _TvSearchPageState extends State<TvSearchPage> {
 
   @override
   void dispose() {
+    firstResultFocus.dispose();
     textController.dispose();
     super.dispose();
   }
@@ -57,6 +59,11 @@ class _TvSearchPageState extends State<TvSearchPage> {
           page = nextPage;
           loading = false;
         });
+        if (!more && results.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) firstResultFocus.requestFocus();
+          });
+        }
       } else {
         setState(() {
           error = '搜索失败：$response';
@@ -148,9 +155,13 @@ class _TvSearchPageState extends State<TvSearchPage> {
                     Wrap(
                       spacing: 16,
                       runSpacing: 18,
-                      children: results
-                          .map((video) => TvVideoCard(video: video))
-                          .toList(),
+                      children: [
+                        for (var index = 0; index < results.length; index++)
+                          TvVideoCard(
+                            video: results[index],
+                            focusNode: index == 0 ? firstResultFocus : null,
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 20),
                     if (results.length < total)

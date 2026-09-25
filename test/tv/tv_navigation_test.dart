@@ -86,4 +86,36 @@ void main() {
     await tester.pump();
     expect(selected, 'second');
   });
+
+  testWidgets('TV action can receive focus after async results load', (
+    tester,
+  ) async {
+    final resultFocus = FocusNode();
+    addTearDown(resultFocus.dispose);
+    var selected = '';
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              TvAction(
+                autofocus: true,
+                onPressed: () => selected = 'search',
+                child: const Text('搜索'),
+              ),
+              TvAction(
+                focusNode: resultFocus,
+                onPressed: () => selected = 'result',
+                child: const Text('搜索结果'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    resultFocus.requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    expect(selected, 'result');
+  });
 }

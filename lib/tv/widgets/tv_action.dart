@@ -7,12 +7,14 @@ class TvAction extends StatefulWidget {
     required this.child,
     required this.onPressed,
     this.autofocus = false,
+    this.focusNode,
     this.padding = const EdgeInsets.all(8),
   });
 
   final Widget child;
   final VoidCallback onPressed;
   final bool autofocus;
+  final FocusNode? focusNode;
   final EdgeInsets padding;
 
   @override
@@ -25,6 +27,7 @@ class _TvActionState extends State<TvAction> {
   @override
   Widget build(BuildContext context) => Focus(
     autofocus: widget.autofocus,
+    focusNode: widget.focusNode,
     onFocusChange: (value) {
       setState(() => focused = value);
       if (value) {

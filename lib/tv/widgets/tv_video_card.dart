@@ -4,10 +4,16 @@ import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 
 class TvVideoCard extends StatelessWidget {
-  const TvVideoCard({super.key, required this.video, this.autofocus = false});
+  const TvVideoCard({
+    super.key,
+    required this.video,
+    this.autofocus = false,
+    this.focusNode,
+  });
 
   final BaseVideoItemModel video;
   final bool autofocus;
+  final FocusNode? focusNode;
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +28,7 @@ class TvVideoCard extends StatelessWidget {
       width: 285,
       child: TvAction(
         autofocus: autofocus,
+        focusNode: focusNode,
         onPressed: () {
           if (bvid != null && bvid.isNotEmpty) {
             Get.toNamed('/tv/detail', arguments: bvid);
