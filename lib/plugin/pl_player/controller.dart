@@ -29,6 +29,7 @@ import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/plugin/pl_player/models/video_fit_type.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
 import 'package:PiliPlus/services/service_locator.dart';
+import 'package:PiliPlus/tv/tv_mode.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/android/android_helper.dart';
 import 'package:PiliPlus/utils/android/bindings.g.dart';
@@ -365,8 +366,6 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   late int? cacheVideoQa = PlatformUtils.isMobile ? null : Pref.defaultVideoQa;
   late int cacheAudioQa = Pref.defaultAudioQa;
   bool enableHeart = true;
-  late final String? hwdec = Pref.enableHA ? Pref.hardwareDecoding : null;
-
   late final progressType = Pref.btmProgressBehavior;
   late final enableQuickDouble = Pref.enableQuickDouble;
   late final fullScreenGestureReverse = Pref.fullScreenGestureReverse;
@@ -723,6 +722,9 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
 
   Future<Player> _initPlayer() async {
     assert(_videoPlayerController == null);
+    final hwdec = Pref.enableHA
+        ? (await TvMode.isEmulator ? 'no' : Pref.hardwareDecoding)
+        : null;
     final opt = {
       'video-sync': Pref.videoSync,
       if (Platform.isAndroid) 'ao': Pref.audioOutput,

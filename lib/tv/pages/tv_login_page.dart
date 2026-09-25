@@ -132,7 +132,7 @@ class _TvLoginPageState extends State<TvLoginPage> {
     backgroundColor: const Color(0xFF10181C),
     body: SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(54),
+        padding: const EdgeInsets.all(40),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -150,8 +150,8 @@ class _TvLoginPageState extends State<TvLoginPage> {
               child: Column(
                 children: [
                   Container(
-                    width: 250,
-                    height: 250,
+                    width: 190,
+                    height: 190,
                     color: Colors.white,
                     padding: const EdgeInsets.all(12),
                     child: url == null
@@ -159,7 +159,13 @@ class _TvLoginPageState extends State<TvLoginPage> {
                         : PrettyQrView.data(data: url!),
                   ),
                   const SizedBox(height: 22),
-                  Text(status, style: const TextStyle(fontSize: 22)),
+                  Text(
+                    status,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 20),
+                  ),
                   const SizedBox(height: 10),
                   if (url != null && secondsLeft > 0)
                     Text(

@@ -1,9 +1,10 @@
 import 'package:PiliPlus/models/model_video.dart';
+import 'package:PiliPlus/tv/tv_playback.dart';
+import 'package:PiliPlus/tv/tv_video_entry.dart';
 import 'package:PiliPlus/tv/widgets/tv_action.dart';
 import 'package:PiliPlus/utils/duration_utils.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:get/get.dart';
 
 class TvVideoCard extends StatelessWidget {
   const TvVideoCard({
@@ -37,7 +38,7 @@ class TvVideoCard extends StatelessWidget {
         focusNode: focusNode,
         onPressed: () {
           if (bvid != null && bvid.isNotEmpty) {
-            Get.toNamed('/tv/detail', arguments: bvid);
+            TvPlayback.open(TvVideoEntry.fromVideo(video));
           }
         },
         child: Column(
