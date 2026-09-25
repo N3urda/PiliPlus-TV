@@ -109,6 +109,9 @@ void main() async {
     await GStorage.setting.put(SettingBoxKey.keyboardControl, true);
     await GStorage.setting.put(SettingBoxKey.showVideoReply, false);
     await GStorage.setting.put(SettingBoxKey.showRelatedVideo, false);
+    if (!GStorage.setting.containsKey(SettingBoxKey.enableShowDanmaku)) {
+      await GStorage.setting.put(SettingBoxKey.enableShowDanmaku, false);
+    }
   }
   ScaledWidgetsFlutterBinding.instance.scaleFactor = Pref.uiScale;
   await Future.wait([

@@ -36,7 +36,7 @@ class _TvActionState extends State<TvAction> {
             Scrollable.ensureVisible(
               context,
               duration: const Duration(milliseconds: 200),
-              alignment: 0.2,
+              alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtStart,
             );
           }
         });

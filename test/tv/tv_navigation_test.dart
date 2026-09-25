@@ -118,4 +118,33 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.select);
     expect(selected, 'result');
   });
+
+  testWidgets('focus does not scroll a fully visible TV card', (tester) async {
+    final scrollController = ScrollController();
+    addTearDown(scrollController.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            height: 300,
+            child: ListView(
+              controller: scrollController,
+              children: [
+                const SizedBox(height: 160),
+                TvAction(
+                  autofocus: true,
+                  onPressed: () {},
+                  padding: const EdgeInsets.all(16),
+                  child: const SizedBox(height: 60),
+                ),
+                const SizedBox(height: 300),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(scrollController.offset, 0);
+  });
 }

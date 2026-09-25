@@ -26,11 +26,11 @@ jobs:
       - name: Test
         run: flutter test --no-pub
       - name: Build universal APK
-        run: flutter build apk --release --no-pub --build-name=0.1.0 --build-number=1 --dart-define=PILIPLUS_TV=true
+        run: flutter build apk --release --no-pub --build-name=0.1.1 --build-number=2 --dart-define=PILIPLUS_TV=true
       - name: Name test APK
-        run: cp build/app/outputs/flutter-apk/app-release.apk PiliPlus-TV-v0.1.0-test.apk
+        run: cp build/app/outputs/flutter-apk/app-release.apk PiliPlus-TV-v0.1.1-test.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: PiliPlus-TV-v0.1.0-test
-          path: PiliPlus-TV-v0.1.0-test.apk
+          name: PiliPlus-TV-v0.1.1-test
+          path: PiliPlus-TV-v0.1.1-test.apk
           if-no-files-found: error
