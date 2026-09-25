@@ -1,8 +1,10 @@
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/http/video.dart';
+import 'package:PiliPlus/models/model_hot_video_item.dart';
 import 'package:PiliPlus/models_new/video/video_detail/data.dart';
 import 'package:PiliPlus/models_new/video/video_detail/page.dart';
 import 'package:PiliPlus/tv/widgets/tv_action.dart';
+import 'package:PiliPlus/tv/widgets/tv_video_row.dart';
 import 'package:PiliPlus/utils/duration_utils.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
@@ -19,6 +21,7 @@ class TvDetailPage extends StatefulWidget {
 class _TvDetailPageState extends State<TvDetailPage> {
   late final String bvid = Get.arguments as String;
   VideoDetailData? detail;
+  List<HotVideoItemModel> related = [];
   bool loading = true;
   String? error;
 
@@ -26,6 +29,17 @@ class _TvDetailPageState extends State<TvDetailPage> {
   void initState() {
     super.initState();
     load();
+    loadRelated();
+  }
+
+  Future<void> loadRelated() async {
+    try {
+      final result = await VideoHttp.relatedVideoList(bvid: bvid);
+      if (!mounted) return;
+      setState(() => related = result.dataOrNull ?? []);
+    } catch (_) {
+      // Related videos are optional; the detail and playback remain usable.
+    }
   }
 
   Future<void> load() async {
@@ -143,6 +157,7 @@ class _TvDetailPageState extends State<TvDetailPage> {
                       child: Image.network(
                         cover,
                         fit: BoxFit.cover,
+                        cacheWidth: 900,
                         errorBuilder: (_, _, _) =>
                             const Icon(Icons.movie_outlined, size: 80),
                       ),
@@ -177,14 +192,19 @@ class _TvDetailPageState extends State<TvDetailPage> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 14),
-                  Text(
-                    video.desc ?? '',
-                    maxLines: 4,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 17, color: Colors.white70),
-                  ),
-                  const SizedBox(height: 24),
+                  if (video.desc?.trim().isNotEmpty == true) ...[
+                    const SizedBox(height: 14),
+                    Text(
+                      video.desc!,
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 22),
                   TvAction(
                     autofocus: true,
                     onPressed: play,
@@ -228,6 +248,10 @@ class _TvDetailPageState extends State<TvDetailPage> {
                 ),
             ],
           ),
+        ],
+        if (related.isNotEmpty) ...[
+          const SizedBox(height: 30),
+          TvVideoRow(title: '相关视频', videos: related),
         ],
       ],
     );

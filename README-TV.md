@@ -9,7 +9,7 @@ This fork is an Android TV video-only prototype based on [PiliPlus](https://gith
 - Bilibili HD QR sign-in, using the existing account store.
 - Existing PiliPlus video player with TV remote controls: Select/Enter toggles playback, Left/Right seek, Up/Down show controls, media next/previous switch episodes, Back returns.
 - TV defaults to a clear video picture without danmaku; users can turn it on in player settings. The first video takes focus when feeds load, and refreshing feeds keeps existing cards visible while loading.
-- A featured video now shows title, creator, views, duration and available description; compact home rows show about four covers on a 1080p TV. Search shows three result columns, and detail pages show more video facts. See [TV home design](docs/tv-home-redesign.md).
+- A featured video now shows title, creator, views, duration and available description; compact home rows show about four covers on a 1080p TV. Search shows three result columns, and detail pages show more video facts plus related videos when available. See [TV home design](docs/tv-home-redesign.md).
 
 The TV home screen does not expose live streams, comics, articles, social feeds or downloads. Search is limited to videos.
 

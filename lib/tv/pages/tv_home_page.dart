@@ -3,7 +3,7 @@ import 'package:PiliPlus/models/model_video.dart';
 import 'package:PiliPlus/tv/tv_feed_loader.dart';
 import 'package:PiliPlus/tv/widgets/tv_action.dart';
 import 'package:PiliPlus/tv/widgets/tv_feature_banner.dart';
-import 'package:PiliPlus/tv/widgets/tv_video_card.dart';
+import 'package:PiliPlus/tv/widgets/tv_video_row.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
@@ -124,7 +124,7 @@ class _TvHomePageState extends State<TvHomePage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
               Expanded(
                 child: loading && !hasVideos
                     ? const Center(child: CircularProgressIndicator())
@@ -167,7 +167,7 @@ class _TvHomePageState extends State<TvHomePage> {
                               focusNode: featuredVideoFocus,
                               label: popular.isNotEmpty ? '正在热播' : '为你推荐',
                             ),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: 8),
                           ],
                           if (recommended.isNotEmpty)
                             TvVideoRow(
@@ -186,55 +186,6 @@ class _TvHomePageState extends State<TvHomePage> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class TvVideoRow extends StatelessWidget {
-  const TvVideoRow({
-    super.key,
-    required this.title,
-    required this.videos,
-  });
-
-  final String title;
-  final List<BaseVideoItemModel> videos;
-  @override
-  Widget build(BuildContext context) {
-    final availableWidth = MediaQuery.sizeOf(context).width - 96;
-    final cardWidth = ((availableWidth - 42) / 4).clamp(178.0, 245.0);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              title,
-              style: const TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              '${videos.length} 条视频',
-              style: const TextStyle(fontSize: 14, color: Colors.white60),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 207,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: videos.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 14),
-            itemBuilder: (context, index) => TvVideoCard(
-              video: videos[index],
-              width: cardWidth,
-              compact: true,
-            ),
-          ),
-        ),
-        const SizedBox(height: 18),
-      ],
     );
   }
 }
