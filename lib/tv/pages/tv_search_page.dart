@@ -4,7 +4,7 @@ import 'package:PiliPlus/models/common/search/search_type.dart';
 import 'package:PiliPlus/models/search/result.dart';
 import 'package:PiliPlus/tv/widgets/tv_action.dart';
 import 'package:PiliPlus/tv/widgets/tv_video_card.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 
 class TvSearchPage extends StatefulWidget {

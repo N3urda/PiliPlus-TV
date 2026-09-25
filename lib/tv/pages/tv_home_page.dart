@@ -1,10 +1,10 @@
-import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/http/video.dart';
 import 'package:PiliPlus/models/model_video.dart';
+import 'package:PiliPlus/tv/tv_feed_loader.dart';
 import 'package:PiliPlus/tv/widgets/tv_action.dart';
 import 'package:PiliPlus/tv/widgets/tv_video_card.dart';
 import 'package:PiliPlus/utils/accounts.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 
 class TvHomePage extends StatefulWidget {
@@ -33,18 +33,18 @@ class _TvHomePageState extends State<TvHomePage> {
       error = null;
     });
     try {
-      final recommendedResult = await VideoHttp.rcmdVideoList(
-        ps: 20,
-        freshIdx: freshIndex++,
+      final feeds = await loadTvFeeds(
+        loadRecommended: () => VideoHttp.rcmdVideoList(
+          ps: 20,
+          freshIdx: freshIndex++,
+        ),
+        loadPopular: () => VideoHttp.hotVideoList(pn: 1, ps: 20),
       );
-      final popularResult = await VideoHttp.hotVideoList(pn: 1, ps: 20);
       if (!mounted) return;
       setState(() {
-        recommended = recommendedResult.dataOrNull ?? [];
-        popular = popularResult.dataOrNull ?? [];
-        error = recommended.isEmpty && popular.isEmpty
-            ? '视频加载失败：${recommendedResult is Error ? recommendedResult : popularResult}'
-            : null;
+        recommended = feeds.recommended;
+        popular = feeds.popular;
+        error = feeds.error;
         loading = false;
       });
     } catch (e) {
