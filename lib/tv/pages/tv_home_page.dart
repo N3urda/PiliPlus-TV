@@ -15,7 +15,9 @@ import 'package:get/get.dart';
 enum _TvSection { home, following, popular }
 
 class TvHomePage extends StatefulWidget {
-  const TvHomePage({super.key});
+  const TvHomePage({super.key, this.feedLoader});
+
+  final Future<TvFeeds> Function()? feedLoader;
 
   @override
   State<TvHomePage> createState() => _TvHomePageState();
@@ -24,6 +26,14 @@ class TvHomePage extends StatefulWidget {
 class _TvHomePageState extends State<TvHomePage> {
   final firstVideoFocus = FocusNode();
   final loginFocus = FocusNode();
+  final refreshFocus = FocusNode();
+  final homeNavFocus = FocusNode();
+  final searchNavFocus = FocusNode();
+  final followingNavFocus = FocusNode();
+  final popularNavFocus = FocusNode();
+  final loginNavFocus = FocusNode();
+  FocusNode? lastVideoFocus;
+  _TvSection? pendingContentSection;
   _TvSection section = _TvSection.home;
   List<TvVideoEntry> recommended = [];
   List<TvVideoEntry> popular = [];
@@ -31,7 +41,6 @@ class _TvHomePageState extends State<TvHomePage> {
   bool loadingHome = false;
   bool loadingFollowing = false;
   bool followingHasMore = true;
-  bool initialFocusPending = true;
   String? followingOffset;
   String? homeError;
   String? followingError;
@@ -47,6 +56,12 @@ class _TvHomePageState extends State<TvHomePage> {
   void dispose() {
     firstVideoFocus.dispose();
     loginFocus.dispose();
+    refreshFocus.dispose();
+    homeNavFocus.dispose();
+    searchNavFocus.dispose();
+    followingNavFocus.dispose();
+    popularNavFocus.dispose();
+    loginNavFocus.dispose();
     super.dispose();
   }
 
@@ -62,9 +77,55 @@ class _TvHomePageState extends State<TvHomePage> {
     _TvSection.popular => popular,
   };
 
+  FocusNode get activeNavFocus => switch (section) {
+    _TvSection.home => homeNavFocus,
+    _TvSection.following => followingNavFocus,
+    _TvSection.popular => popularNavFocus,
+  };
+
+  void enterContent() {
+    if (section == _TvSection.following && !Accounts.main.isLogin) {
+      loginFocus.requestFocus();
+    } else if (activeVideos.isNotEmpty) {
+      final previous = lastVideoFocus;
+      if (previous != null && previous.context != null) {
+        previous.requestFocus();
+      } else {
+        focusFirstVideo();
+      }
+    } else {
+      if (section == _TvSection.following ? loadingFollowing : loadingHome) {
+        pendingContentSection = section;
+      }
+      refreshFocus.requestFocus();
+    }
+  }
+
+  void returnToNavigation(FocusNode current) {
+    lastVideoFocus = current;
+    activeNavFocus.requestFocus();
+  }
+
   void focusFirstVideo() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && activeVideos.isNotEmpty) firstVideoFocus.requestFocus();
+    });
+  }
+
+  void resolvePendingContentFocus({required bool followingFeed}) {
+    final requested = pendingContentSection;
+    if (requested == null ||
+        (requested == _TvSection.following) != followingFeed) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || pendingContentSection != requested) return;
+      pendingContentSection = null;
+      if (section == requested &&
+          refreshFocus.hasFocus &&
+          activeVideos.isNotEmpty) {
+        firstVideoFocus.requestFocus();
+      }
     });
   }
 
@@ -75,13 +136,15 @@ class _TvHomePageState extends State<TvHomePage> {
       homeError = null;
     });
     try {
-      final feeds = await loadTvFeeds(
-        loadRecommended: () => VideoHttp.rcmdVideoList(
-          ps: 20,
-          freshIdx: freshIndex++,
-        ),
-        loadPopular: () => VideoHttp.hotVideoList(pn: 1, ps: 20),
-      );
+      final feeds =
+          await (widget.feedLoader?.call() ??
+              loadTvFeeds(
+                loadRecommended: () => VideoHttp.rcmdVideoList(
+                  ps: 20,
+                  freshIdx: freshIndex++,
+                ),
+                loadPopular: () => VideoHttp.hotVideoList(pn: 1, ps: 20),
+              ));
       if (!mounted) return;
       final nextRecommended = _entries(feeds.recommended);
       final nextPopular = _entries(feeds.popular);
@@ -93,16 +156,14 @@ class _TvHomePageState extends State<TvHomePage> {
         homeError = feeds.error;
         loadingHome = false;
       });
-      if (initialFocusPending && activeVideos.isNotEmpty) {
-        initialFocusPending = false;
-        focusFirstVideo();
-      }
+      resolvePendingContentFocus(followingFeed: false);
     } catch (e) {
       if (!mounted) return;
       setState(() {
         homeError = '视频加载失败：$e';
         loadingHome = false;
       });
+      resolvePendingContentFocus(followingFeed: false);
     }
   }
 
@@ -148,40 +209,48 @@ class _TvHomePageState extends State<TvHomePage> {
         followingHasMore = hasMore;
         loadingFollowing = false;
       });
-      if (!more && section == _TvSection.following && following.isNotEmpty) {
-        focusFirstVideo();
-      }
+      resolvePendingContentFocus(followingFeed: true);
     } catch (e) {
       if (!mounted) return;
       setState(() {
         followingError = '关注动态加载失败：$e';
         loadingFollowing = false;
       });
+      resolvePendingContentFocus(followingFeed: true);
     }
   }
 
-  Future<void> openLogin() async {
+  Future<void> openLogin({FocusNode? returnFocus}) async {
     await Get.toNamed('/tv/login');
     if (!mounted) return;
     setState(() {});
     if (Accounts.main.isLogin) loadFollowing();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (Accounts.main.isLogin) {
+        activeNavFocus.requestFocus();
+      } else {
+        (returnFocus ?? loginFocus).requestFocus();
+      }
+    });
+  }
+
+  Future<void> openSearch() async {
+    await Get.toNamed('/tv/search');
+    if (mounted) searchNavFocus.requestFocus();
   }
 
   void selectSection(_TvSection next) {
     if (section == next) return;
-    setState(() => section = next);
+    setState(() {
+      section = next;
+      lastVideoFocus = null;
+      pendingContentSection = null;
+    });
     if (next == _TvSection.following) {
       if (Accounts.main.isLogin && following.isEmpty) {
         loadFollowing();
-      } else if (!Accounts.main.isLogin) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) loginFocus.requestFocus();
-        });
-      } else {
-        focusFirstVideo();
       }
-    } else {
-      focusFirstVideo();
     }
   }
 
@@ -215,78 +284,90 @@ class _TvHomePageState extends State<TvHomePage> {
       backgroundColor: const Color(0xFF0B0C0E),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 14, 24, 8),
-          child: Column(
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
+          child: Row(
             children: [
-              _buildHeader(),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 39,
-                child: Row(
+              SizedBox(width: 126, child: _buildSidebar()),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                    SizedBox(
+                      height: 39,
+                      child: Row(
+                        children: [
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 18),
+                          Text(
+                            subtitle,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.white60,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (!loggedOut)
+                            _TvNavButton(
+                              label: loading ? '加载中' : '刷新',
+                              focusNode: refreshFocus,
+                              onArrowLeft: () => activeNavFocus.requestFocus(),
+                              onPressed: refreshActive,
+                              compact: true,
+                            ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 18),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.white60,
+                    const SizedBox(height: 5),
+                    if (loading && videos.isNotEmpty)
+                      const LinearProgressIndicator(
+                        minHeight: 2,
+                        color: Color(0xFFC51D2C),
                       ),
+                    if (error != null && videos.isNotEmpty)
+                      Text(
+                        error,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange,
+                        ),
+                      ),
+                    Expanded(
+                      child: loggedOut
+                          ? _buildLoggedOut()
+                          : loading && videos.isEmpty
+                          ? const Center(
+                              child: CircularProgressIndicator(
+                                color: Color(0xFFC51D2C),
+                              ),
+                            )
+                          : error != null && videos.isEmpty
+                          ? _buildMessage(error, retry: refreshActive)
+                          : videos.isEmpty
+                          ? _buildMessage(
+                              isFollowing ? '关注的 UP 主暂时没有新投稿视频' : '暂无可播放的视频',
+                              retry: refreshActive,
+                            )
+                          : TvVideoGrid(
+                              key: ValueKey(section),
+                              videos: videos,
+                              firstFocusNode: firstVideoFocus,
+                              showPublished: isFollowing,
+                              onOpen: TvPlayback.open,
+                              onLeftEdge: returnToNavigation,
+                              onNearEnd: isFollowing
+                                  ? () => loadFollowing(more: true)
+                                  : null,
+                            ),
                     ),
-                    const Spacer(),
-                    if (!loggedOut)
-                      _TvNavButton(
-                        label: loading ? '加载中' : '刷新',
-                        onPressed: refreshActive,
-                        compact: true,
-                      ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 5),
-              if (loading && videos.isNotEmpty)
-                const LinearProgressIndicator(
-                  minHeight: 2,
-                  color: Color(0xFFC51D2C),
-                ),
-              if (error != null && videos.isNotEmpty)
-                Text(
-                  error,
-                  style: const TextStyle(fontSize: 12, color: Colors.orange),
-                ),
-              Expanded(
-                child: loggedOut
-                    ? _buildLoggedOut()
-                    : loading && videos.isEmpty
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFFC51D2C),
-                        ),
-                      )
-                    : error != null && videos.isEmpty
-                    ? _buildMessage(error, retry: refreshActive)
-                    : videos.isEmpty
-                    ? _buildMessage(
-                        isFollowing ? '关注的 UP 主暂时没有新投稿视频' : '暂无可播放的视频',
-                        retry: refreshActive,
-                      )
-                    : TvVideoGrid(
-                        key: ValueKey(section),
-                        videos: videos,
-                        firstFocusNode: firstVideoFocus,
-                        showPublished: isFollowing,
-                        onOpen: TvPlayback.open,
-                        onNearEnd: isFollowing
-                            ? () => loadFollowing(more: true)
-                            : null,
-                      ),
               ),
             ],
           ),
@@ -295,68 +376,112 @@ class _TvHomePageState extends State<TvHomePage> {
     );
   }
 
-  Widget _buildHeader() => Container(
-    height: 51,
-    padding: const EdgeInsets.symmetric(horizontal: 10),
+  Widget _buildSidebar() => Container(
+    padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
     decoration: BoxDecoration(
       color: const Color(0xFF17191D),
       borderRadius: BorderRadius.circular(12),
     ),
-    child: Row(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          height: 29,
-          width: 29,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: const Color(0xFFC51D2C),
-            borderRadius: BorderRadius.circular(5),
-          ),
-          child: const Text(
-            'P',
-            style: TextStyle(fontSize: 20, color: Colors.white),
+        Row(
+          children: [
+            Container(
+              height: 27,
+              width: 27,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0xFFC51D2C),
+                borderRadius: BorderRadius.circular(5),
+              ),
+              child: const Text(
+                'P',
+                style: TextStyle(fontSize: 19, color: Colors.white),
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'PiliPlus',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const Padding(
+          padding: EdgeInsets.only(left: 35, top: 2),
+          child: Text(
+            'TV',
+            style: TextStyle(fontSize: 11, color: Colors.white60),
           ),
         ),
-        const SizedBox(width: 7),
-        const Text(
-          'PiliPlus',
-          style: TextStyle(
-            fontSize: 21,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(width: 6),
-        const Text('TV', style: TextStyle(fontSize: 12, color: Colors.white60)),
-        const Spacer(),
-        _TvNavButton(
+        const SizedBox(height: 32),
+        _TvRailButton(
           label: '首页',
+          icon: Icons.home_outlined,
           selected: section == _TvSection.home,
           autofocus: true,
+          focusNode: homeNavFocus,
+          onDown: searchNavFocus.requestFocus,
+          onRight: enterContent,
           onPressed: () => selectSection(_TvSection.home),
         ),
-        _TvNavButton(
+        _TvRailButton(
           label: '搜索',
-          onPressed: () => Get.toNamed('/tv/search'),
+          icon: Icons.search,
+          focusNode: searchNavFocus,
+          onUp: homeNavFocus.requestFocus,
+          onDown: followingNavFocus.requestFocus,
+          onRight: enterContent,
+          onPressed: openSearch,
         ),
-        _TvNavButton(
+        _TvRailButton(
           label: '动态',
+          icon: Icons.subscriptions_outlined,
           selected: section == _TvSection.following,
+          focusNode: followingNavFocus,
+          onUp: searchNavFocus.requestFocus,
+          onDown: popularNavFocus.requestFocus,
+          onRight: enterContent,
           onPressed: () => selectSection(_TvSection.following),
         ),
-        _TvNavButton(
+        _TvRailButton(
           label: '热门',
+          icon: Icons.local_fire_department_outlined,
           selected: section == _TvSection.popular,
+          focusNode: popularNavFocus,
+          onUp: followingNavFocus.requestFocus,
+          onDown: Accounts.main.isLogin ? null : loginNavFocus.requestFocus,
+          onRight: enterContent,
           onPressed: () => selectSection(_TvSection.popular),
         ),
         const Spacer(),
         if (Accounts.main.isLogin)
-          const Text(
-            '已登录',
-            style: TextStyle(fontSize: 13, color: Colors.white70),
+          const Padding(
+            padding: EdgeInsets.all(8),
+            child: Text(
+              '已登录',
+              style: TextStyle(fontSize: 13, color: Colors.white70),
+            ),
           )
         else
-          _TvNavButton(label: '扫码登录', compact: true, onPressed: openLogin),
+          _TvRailButton(
+            label: '扫码登录',
+            icon: Icons.qr_code_2,
+            focusNode: loginNavFocus,
+            onUp: popularNavFocus.requestFocus,
+            onRight: enterContent,
+            onPressed: () => openLogin(returnFocus: loginNavFocus),
+          ),
       ],
     ),
   );
@@ -379,7 +504,8 @@ class _TvHomePageState extends State<TvHomePage> {
         _TvNavButton(
           label: '扫码登录',
           focusNode: loginFocus,
-          onPressed: openLogin,
+          onArrowLeft: () => activeNavFocus.requestFocus(),
+          onPressed: () => openLogin(returnFocus: loginFocus),
         ),
       ],
     ),
@@ -400,22 +526,126 @@ class _TvHomePageState extends State<TvHomePage> {
   );
 }
 
+class _TvRailButton extends StatefulWidget {
+  const _TvRailButton({
+    required this.label,
+    required this.icon,
+    required this.focusNode,
+    required this.onPressed,
+    required this.onRight,
+    this.onUp,
+    this.onDown,
+    this.selected = false,
+    this.autofocus = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final FocusNode focusNode;
+  final VoidCallback onPressed;
+  final VoidCallback onRight;
+  final VoidCallback? onUp;
+  final VoidCallback? onDown;
+  final bool selected;
+  final bool autofocus;
+
+  @override
+  State<_TvRailButton> createState() => _TvRailButtonState();
+}
+
+class _TvRailButtonState extends State<_TvRailButton> {
+  bool focused = false;
+
+  @override
+  Widget build(BuildContext context) => Focus(
+    autofocus: widget.autofocus,
+    focusNode: widget.focusNode,
+    onFocusChange: (value) => setState(() => focused = value),
+    onKeyEvent: (_, event) {
+      if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+        return KeyEventResult.ignored;
+      }
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.arrowUp:
+          widget.onUp?.call();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.arrowDown:
+          widget.onDown?.call();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.arrowRight:
+          widget.onRight();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.arrowLeft:
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.select:
+        case LogicalKeyboardKey.enter:
+        case LogicalKeyboardKey.space:
+          if (event is KeyDownEvent) widget.onPressed();
+          return KeyEventResult.handled;
+        default:
+          return KeyEventResult.ignored;
+      }
+    },
+    child: Semantics(
+      button: true,
+      selected: widget.selected,
+      child: GestureDetector(
+        onTap: () {
+          widget.focusNode.requestFocus();
+          widget.onPressed();
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          margin: const EdgeInsets.symmetric(vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 8),
+          decoration: BoxDecoration(
+            color: widget.selected
+                ? const Color(0xFF67212A)
+                : focused
+                ? const Color(0xFF31353B)
+                : Colors.transparent,
+            border: Border.all(
+              color: focused ? Colors.white : Colors.transparent,
+              width: 2,
+            ),
+            borderRadius: BorderRadius.circular(7),
+          ),
+          child: Row(
+            children: [
+              Icon(widget.icon, size: 18, color: Colors.white),
+              const SizedBox(width: 7),
+              Text(
+                widget.label,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: widget.selected
+                      ? FontWeight.w700
+                      : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 class _TvNavButton extends StatefulWidget {
   const _TvNavButton({
     required this.label,
     required this.onPressed,
-    this.selected = false,
-    this.autofocus = false,
     this.compact = false,
     this.focusNode,
+    this.onArrowLeft,
   });
 
   final String label;
   final VoidCallback onPressed;
-  final bool selected;
-  final bool autofocus;
   final bool compact;
   final FocusNode? focusNode;
+  final VoidCallback? onArrowLeft;
 
   @override
   State<_TvNavButton> createState() => _TvNavButtonState();
@@ -426,15 +656,20 @@ class _TvNavButtonState extends State<_TvNavButton> {
 
   @override
   Widget build(BuildContext context) => Focus(
-    autofocus: widget.autofocus,
     focusNode: widget.focusNode,
     onFocusChange: (value) => setState(() => focused = value),
     onKeyEvent: (_, event) {
-      if (event is KeyDownEvent &&
+      if ((event is KeyDownEvent || event is KeyRepeatEvent) &&
+          event.logicalKey == LogicalKeyboardKey.arrowLeft &&
+          widget.onArrowLeft != null) {
+        widget.onArrowLeft!();
+        return KeyEventResult.handled;
+      }
+      if ((event is KeyDownEvent || event is KeyRepeatEvent) &&
           (event.logicalKey == LogicalKeyboardKey.select ||
               event.logicalKey == LogicalKeyboardKey.enter ||
               event.logicalKey == LogicalKeyboardKey.space)) {
-        widget.onPressed();
+        if (event is KeyDownEvent) widget.onPressed();
         return KeyEventResult.handled;
       }
       return KeyEventResult.ignored;
@@ -449,11 +684,7 @@ class _TvNavButtonState extends State<_TvNavButton> {
           vertical: 6,
         ),
         decoration: BoxDecoration(
-          color: widget.selected
-              ? const Color(0xFFF2F2F3)
-              : focused
-              ? const Color(0xFF35383E)
-              : Colors.transparent,
+          color: focused ? const Color(0xFF35383E) : Colors.transparent,
           border: Border.all(
             color: focused ? const Color(0xFFC51D2C) : Colors.transparent,
             width: 2,
@@ -464,8 +695,8 @@ class _TvNavButtonState extends State<_TvNavButton> {
           widget.label,
           style: TextStyle(
             fontSize: widget.compact ? 13 : 15,
-            color: widget.selected ? const Color(0xFF151619) : Colors.white,
-            fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w500,
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ),

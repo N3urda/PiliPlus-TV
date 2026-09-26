@@ -11,6 +11,7 @@ class TvVideoGrid extends StatelessWidget {
     this.firstFocusNode,
     this.showPublished = false,
     this.onNearEnd,
+    this.onLeftEdge,
   });
 
   final List<TvVideoEntry> videos;
@@ -18,6 +19,7 @@ class TvVideoGrid extends StatelessWidget {
   final FocusNode? firstFocusNode;
   final bool showPublished;
   final VoidCallback? onNearEnd;
+  final ValueChanged<FocusNode>? onLeftEdge;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -43,6 +45,7 @@ class TvVideoGrid extends StatelessWidget {
           focusNode: index == 0 ? firstFocusNode : null,
           showPublished: showPublished,
           onOpen: () => onOpen(videos[index]),
+          onLeftEdge: index % columns == 0 ? onLeftEdge : null,
           onFocused: onNearEnd != null && index >= videos.length - columns
               ? onNearEnd
               : null,
@@ -60,6 +63,7 @@ class TvCinematicVideoCard extends StatefulWidget {
     this.focusNode,
     this.showPublished = false,
     this.onFocused,
+    this.onLeftEdge,
   });
 
   final TvVideoEntry video;
@@ -67,6 +71,7 @@ class TvCinematicVideoCard extends StatefulWidget {
   final FocusNode? focusNode;
   final bool showPublished;
   final VoidCallback? onFocused;
+  final ValueChanged<FocusNode>? onLeftEdge;
 
   @override
   State<TvCinematicVideoCard> createState() => _TvCinematicVideoCardState();
@@ -116,12 +121,18 @@ class _TvCinematicVideoCardState extends State<TvCinematicVideoCard> {
           });
         }
       },
-      onKeyEvent: (_, event) {
-        if (event is KeyDownEvent &&
+      onKeyEvent: (node, event) {
+        if ((event is KeyDownEvent || event is KeyRepeatEvent) &&
+            event.logicalKey == LogicalKeyboardKey.arrowLeft &&
+            widget.onLeftEdge != null) {
+          widget.onLeftEdge!(node);
+          return KeyEventResult.handled;
+        }
+        if ((event is KeyDownEvent || event is KeyRepeatEvent) &&
             (event.logicalKey == LogicalKeyboardKey.select ||
                 event.logicalKey == LogicalKeyboardKey.enter ||
                 event.logicalKey == LogicalKeyboardKey.space)) {
-          widget.onOpen();
+          if (event is KeyDownEvent) widget.onOpen();
           return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;
