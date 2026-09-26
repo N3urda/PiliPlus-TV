@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:PiliPlus/models/model_video.dart';
 import 'package:PiliPlus/tv/tv_feed_loader.dart';
 import 'package:PiliPlus/tv/pages/tv_home_page.dart';
+import 'package:PiliPlus/tv/widgets/tv_cover_backdrop.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,9 +13,10 @@ import 'package:get/get.dart';
 import 'package:hive_ce/hive.dart';
 
 class _Video extends BaseVideoItemModel {
-  _Video() {
-    bvid = 'BV1';
-    title = '加载后的视频';
+  _Video({String id = 'BV1', String name = '加载后的视频', String? image}) {
+    bvid = id;
+    title = name;
+    cover = image;
     owner = _Owner();
     stat = _Stat();
   }
@@ -101,6 +103,50 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
     await tester.pump();
     expect(Focus.of(tester.element(find.text('动态'))).hasFocus, isTrue);
+  });
+
+  testWidgets('cover background follows video focus without moving the focus', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(960, 540));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: TvHomePage(
+          feedLoader: () async => (
+            recommended: <BaseVideoItemModel>[
+              _Video(name: '第一个视频', image: 'https://example.com/first.jpg'),
+              _Video(
+                id: 'BV2',
+                name: '第二个视频',
+                image: 'https://example.com/second.jpg',
+              ),
+            ],
+            popular: <BaseVideoItemModel>[],
+            error: null,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(
+      tester.widget<TvCoverBackdrop>(find.byType(TvCoverBackdrop)).coverUrl,
+      'https://example.com/first.jpg',
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.idle();
+    expect(Focus.of(tester.element(find.text('第一个视频'))).hasFocus, isTrue);
+    await tester.pump();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump();
+    expect(
+      tester.widget<TvCoverBackdrop>(find.byType(TvCoverBackdrop)).coverUrl,
+      'https://example.com/second.jpg',
+    );
+    expect(Focus.of(tester.element(find.text('第二个视频'))).hasFocus, isTrue);
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   testWidgets('right during loading enters the grid when videos arrive', (

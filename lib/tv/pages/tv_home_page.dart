@@ -6,6 +6,7 @@ import 'package:PiliPlus/models/model_video.dart';
 import 'package:PiliPlus/tv/tv_feed_loader.dart';
 import 'package:PiliPlus/tv/tv_playback.dart';
 import 'package:PiliPlus/tv/tv_video_entry.dart';
+import 'package:PiliPlus/tv/widgets/tv_cover_backdrop.dart';
 import 'package:PiliPlus/tv/widgets/tv_video_grid.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:flutter/material.dart';
@@ -32,6 +33,8 @@ class _TvHomePageState extends State<TvHomePage> {
   final followingNavFocus = FocusNode();
   final popularNavFocus = FocusNode();
   final loginNavFocus = FocusNode();
+  final backdropCover = ValueNotifier<String?>(null);
+  String? backdropVideoBvid;
   FocusNode? lastVideoFocus;
   _TvSection? pendingContentSection;
   _TvSection section = _TvSection.home;
@@ -54,6 +57,7 @@ class _TvHomePageState extends State<TvHomePage> {
 
   @override
   void dispose() {
+    backdropCover.dispose();
     firstVideoFocus.dispose();
     loginFocus.dispose();
     refreshFocus.dispose();
@@ -76,6 +80,28 @@ class _TvHomePageState extends State<TvHomePage> {
     _TvSection.following => following,
     _TvSection.popular => popular,
   };
+
+  void updateBackdrop(TvVideoEntry video) {
+    backdropVideoBvid = video.bvid;
+    backdropCover.value = video.cover;
+  }
+
+  void syncBackdrop({bool reset = false}) {
+    final videos = activeVideos;
+    if (videos.isEmpty) {
+      backdropVideoBvid = null;
+      backdropCover.value = null;
+      return;
+    }
+    updateBackdrop(
+      reset
+          ? videos.first
+          : videos.firstWhere(
+              (video) => video.bvid == backdropVideoBvid,
+              orElse: () => videos.first,
+            ),
+    );
+  }
 
   FocusNode get activeNavFocus => switch (section) {
     _TvSection.home => homeNavFocus,
@@ -107,9 +133,7 @@ class _TvHomePageState extends State<TvHomePage> {
   }
 
   void focusFirstVideo() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && activeVideos.isNotEmpty) firstVideoFocus.requestFocus();
-    });
+    if (mounted && activeVideos.isNotEmpty) firstVideoFocus.requestFocus();
   }
 
   void resolvePendingContentFocus({required bool followingFeed}) {
@@ -157,6 +181,7 @@ class _TvHomePageState extends State<TvHomePage> {
         loadingHome = false;
       });
       resolvePendingContentFocus(followingFeed: false);
+      syncBackdrop();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -210,6 +235,7 @@ class _TvHomePageState extends State<TvHomePage> {
         loadingFollowing = false;
       });
       resolvePendingContentFocus(followingFeed: true);
+      syncBackdrop();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -247,6 +273,7 @@ class _TvHomePageState extends State<TvHomePage> {
       lastVideoFocus = null;
       pendingContentSection = null;
     });
+    syncBackdrop(reset: true);
     if (next == _TvSection.following) {
       if (Accounts.main.isLogin && following.isEmpty) {
         loadFollowing();
@@ -282,96 +309,112 @@ class _TvHomePageState extends State<TvHomePage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B0C0E),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
-          child: Row(
-            children: [
-              SizedBox(width: 126, child: _buildSidebar()),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: ValueListenableBuilder<String?>(
+              valueListenable: backdropCover,
+              builder: (_, cover, _) => TvCoverBackdrop(coverUrl: cover),
+            ),
+          ),
+          RepaintBoundary(
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
+                child: Row(
                   children: [
-                    SizedBox(
-                      height: 39,
-                      child: Row(
+                    SizedBox(width: 126, child: _buildSidebar()),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
                         children: [
-                          Text(
-                            title,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                          SizedBox(
+                            height: 39,
+                            child: Row(
+                              children: [
+                                Text(
+                                  title,
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(width: 18),
+                                Text(
+                                  subtitle,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white60,
+                                  ),
+                                ),
+                                const Spacer(),
+                                if (!loggedOut)
+                                  _TvNavButton(
+                                    label: loading ? '加载中' : '刷新',
+                                    focusNode: refreshFocus,
+                                    onArrowLeft: () =>
+                                        activeNavFocus.requestFocus(),
+                                    onPressed: refreshActive,
+                                    compact: true,
+                                  ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 18),
-                          Text(
-                            subtitle,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.white60,
+                          const SizedBox(height: 5),
+                          if (loading && videos.isNotEmpty)
+                            const LinearProgressIndicator(
+                              minHeight: 2,
+                              color: Color(0xFFC51D2C),
                             ),
+                          if (error != null && videos.isNotEmpty)
+                            Text(
+                              error,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.orange,
+                              ),
+                            ),
+                          Expanded(
+                            child: loggedOut
+                                ? _buildLoggedOut()
+                                : loading && videos.isEmpty
+                                ? const Center(
+                                    child: CircularProgressIndicator(
+                                      color: Color(0xFFC51D2C),
+                                    ),
+                                  )
+                                : error != null && videos.isEmpty
+                                ? _buildMessage(error, retry: refreshActive)
+                                : videos.isEmpty
+                                ? _buildMessage(
+                                    isFollowing
+                                        ? '关注的 UP 主暂时没有新投稿视频'
+                                        : '暂无可播放的视频',
+                                    retry: refreshActive,
+                                  )
+                                : TvVideoGrid(
+                                    key: ValueKey(section),
+                                    videos: videos,
+                                    firstFocusNode: firstVideoFocus,
+                                    showPublished: isFollowing,
+                                    onOpen: TvPlayback.open,
+                                    onVideoFocused: updateBackdrop,
+                                    onLeftEdge: returnToNavigation,
+                                    onNearEnd: isFollowing
+                                        ? () => loadFollowing(more: true)
+                                        : null,
+                                  ),
                           ),
-                          const Spacer(),
-                          if (!loggedOut)
-                            _TvNavButton(
-                              label: loading ? '加载中' : '刷新',
-                              focusNode: refreshFocus,
-                              onArrowLeft: () => activeNavFocus.requestFocus(),
-                              onPressed: refreshActive,
-                              compact: true,
-                            ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 5),
-                    if (loading && videos.isNotEmpty)
-                      const LinearProgressIndicator(
-                        minHeight: 2,
-                        color: Color(0xFFC51D2C),
-                      ),
-                    if (error != null && videos.isNotEmpty)
-                      Text(
-                        error,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.orange,
-                        ),
-                      ),
-                    Expanded(
-                      child: loggedOut
-                          ? _buildLoggedOut()
-                          : loading && videos.isEmpty
-                          ? const Center(
-                              child: CircularProgressIndicator(
-                                color: Color(0xFFC51D2C),
-                              ),
-                            )
-                          : error != null && videos.isEmpty
-                          ? _buildMessage(error, retry: refreshActive)
-                          : videos.isEmpty
-                          ? _buildMessage(
-                              isFollowing ? '关注的 UP 主暂时没有新投稿视频' : '暂无可播放的视频',
-                              retry: refreshActive,
-                            )
-                          : TvVideoGrid(
-                              key: ValueKey(section),
-                              videos: videos,
-                              firstFocusNode: firstVideoFocus,
-                              showPublished: isFollowing,
-                              onOpen: TvPlayback.open,
-                              onLeftEdge: returnToNavigation,
-                              onNearEnd: isFollowing
-                                  ? () => loadFollowing(more: true)
-                                  : null,
-                            ),
                     ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -379,7 +422,7 @@ class _TvHomePageState extends State<TvHomePage> {
   Widget _buildSidebar() => Container(
     padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
     decoration: BoxDecoration(
-      color: const Color(0xFF17191D),
+      color: const Color(0xB317191D),
       borderRadius: BorderRadius.circular(12),
     ),
     child: Column(

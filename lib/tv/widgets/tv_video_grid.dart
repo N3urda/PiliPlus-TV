@@ -12,6 +12,7 @@ class TvVideoGrid extends StatelessWidget {
     this.showPublished = false,
     this.onNearEnd,
     this.onLeftEdge,
+    this.onVideoFocused,
   });
 
   final List<TvVideoEntry> videos;
@@ -20,6 +21,7 @@ class TvVideoGrid extends StatelessWidget {
   final bool showPublished;
   final VoidCallback? onNearEnd;
   final ValueChanged<FocusNode>? onLeftEdge;
+  final ValueChanged<TvVideoEntry>? onVideoFocused;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -46,9 +48,10 @@ class TvVideoGrid extends StatelessWidget {
           showPublished: showPublished,
           onOpen: () => onOpen(videos[index]),
           onLeftEdge: index % columns == 0 ? onLeftEdge : null,
-          onFocused: onNearEnd != null && index >= videos.length - columns
-              ? onNearEnd
-              : null,
+          onFocused: () {
+            onVideoFocused?.call(videos[index]);
+            if (index >= videos.length - columns) onNearEnd?.call();
+          },
         ),
       );
     },
@@ -149,7 +152,7 @@ class _TvCinematicVideoCardState extends State<TvCinematicVideoCard> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 120),
             decoration: BoxDecoration(
-              color: const Color(0xFF15171B),
+              color: const Color(0xCC15171B),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: focused ? Colors.white : Colors.transparent,
