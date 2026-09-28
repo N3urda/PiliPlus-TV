@@ -188,7 +188,7 @@ class AudioController extends GetxController
         volume: _videoDetailController?.volume,
       );
     }
-    ConnectivityUtils.isWiFi.then((isWiFi) {
+    ConnectivityUtils.isBroadband.then((isWiFi) {
       cacheAudioQa = isWiFi ? Pref.defaultAudioQa : Pref.defaultAudioQaCellular;
       if (!hasAudioUrl) {
         _queryPlayUrl();

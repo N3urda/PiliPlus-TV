@@ -65,6 +65,7 @@ import 'package:PiliPlus/utils/mobile_observer.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
+import 'package:PiliPlus/utils/tv_platform.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/theme_utils.dart';
@@ -1198,49 +1199,52 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     required double width,
     required double height,
     bool isPipMode = false,
-  }) => popScope(
-    key: videoDetailController.videoPlayerKey,
-    canPop:
-        !isFullScreen &&
-        !videoDetailController.plPlayerController.isDesktopPip &&
-        (videoDetailController.horizontalScreen || isPortrait),
-    onPopInvokedWithResult:
-        videoDetailController.plPlayerController.onPopInvokedWithResult,
-    child: Obx(
-      () =>
-          !videoDetailController.videoState.value ||
-              !videoDetailController.autoPlay ||
-              plPlayerController?.videoController == null
-          ? const SizedBox.shrink()
-          : PLVideoPlayer(
-              maxWidth: width,
-              maxHeight: height,
-              plPlayerController: plPlayerController!,
-              videoDetailController: videoDetailController,
-              introController: introController,
-              headerControl: HeaderControl(
-                key: videoDetailController.headerCtrKey,
-                isPortrait: isPortrait,
-                controller: videoDetailController.plPlayerController,
-                videoDetailCtr: videoDetailController,
-                heroTag: heroTag,
-              ),
-              danmuWidget: isPipMode && pipNoDanmaku
-                  ? null
-                  : Obx(
-                      () => PlDanmaku(
-                        key: ValueKey(videoDetailController.cid.value),
-                        isPipMode: isPipMode,
-                        cid: videoDetailController.cid.value,
-                        playerController: plPlayerController!,
-                        isFullScreen: plPlayerController!.isFullScreen.value,
-                        isFileSource: videoDetailController.isFileSource,
-                        size: Size(width, height),
+  }) => Obx(
+    () => popScope(
+      key: videoDetailController.videoPlayerKey,
+      canPop:
+          !videoDetailController.plPlayerController.tvControlsVisible.value &&
+          !isFullScreen &&
+          !videoDetailController.plPlayerController.isDesktopPip &&
+          (videoDetailController.horizontalScreen || isPortrait),
+      onPopInvokedWithResult:
+          videoDetailController.plPlayerController.onPopInvokedWithResult,
+      child: Obx(
+        () =>
+            !videoDetailController.videoState.value ||
+                !videoDetailController.autoPlay ||
+                plPlayerController?.videoController == null
+            ? const SizedBox.shrink()
+            : PLVideoPlayer(
+                maxWidth: width,
+                maxHeight: height,
+                plPlayerController: plPlayerController!,
+                videoDetailController: videoDetailController,
+                introController: introController,
+                headerControl: HeaderControl(
+                  key: videoDetailController.headerCtrKey,
+                  isPortrait: isPortrait,
+                  controller: videoDetailController.plPlayerController,
+                  videoDetailCtr: videoDetailController,
+                  heroTag: heroTag,
+                ),
+                danmuWidget: isPipMode && pipNoDanmaku
+                    ? null
+                    : Obx(
+                        () => PlDanmaku(
+                          key: ValueKey(videoDetailController.cid.value),
+                          isPipMode: isPipMode,
+                          cid: videoDetailController.cid.value,
+                          playerController: plPlayerController!,
+                          isFullScreen: plPlayerController!.isFullScreen.value,
+                          isFileSource: videoDetailController.isFileSource,
+                          size: Size(width, height),
+                        ),
                       ),
-                    ),
-              showEpisodes: showEpisodes,
-              showViewPoints: showViewPoints,
-            ),
+                showEpisodes: showEpisodes,
+                showViewPoints: showViewPoints,
+              ),
+      ),
     ),
   );
 
@@ -1266,7 +1270,8 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     } else {
       child = childWhenDisabledAlmostSquare;
     }
-    if (videoDetailController.plPlayerController.keyboardControl) {
+    if (TvPlatform.isTv ||
+        videoDetailController.plPlayerController.keyboardControl) {
       child = PlayerFocus(
         plPlayerController: videoDetailController.plPlayerController,
         introController: introController,
@@ -1279,6 +1284,28 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
           return false;
         },
         onSkipSegment: videoDetailController.onSkipSegment,
+        onRefresh: () => videoDetailController.queryVideoUrl(),
+        tvActions: [
+          (label: '选集', onPressed: _showTvEpisodes),
+          (
+            label: '画质',
+            onPressed: () =>
+                (videoDetailController.headerCtrKey.currentState
+                        as HeaderControlState?)
+                    ?.showSetVideoQa(),
+          ),
+          (
+            label: '字幕',
+            onPressed: _showTvSubtitles,
+          ),
+          (
+            label: '更多设置',
+            onPressed: () =>
+                (videoDetailController.headerCtrKey.currentState
+                        as HeaderControlState?)
+                    ?.showSettingSheet(),
+          ),
+        ],
         child: child,
       );
     }
@@ -1855,6 +1882,91 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         videoTags: videoTags,
       ),
     );
+  }
+
+  Future<void> _showTvSubtitles() async {
+    final ctr = videoDetailController;
+    final cid = ctr.cid.value;
+    final subtitles = ctr.subtitles.toList();
+    final selected = await showDialog<int>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('字幕'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 0),
+            child: Text('关闭字幕${ctr.vttSubtitlesIndex.value <= 0 ? '  ✓' : ''}'),
+          ),
+          for (var i = 0; i < subtitles.length; i++)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, i + 1),
+              child: Text(
+                '${subtitles[i].lanDoc ?? subtitles[i].lan}${ctr.vttSubtitlesIndex.value == i + 1 ? '  ✓' : ''}',
+              ),
+            ),
+          if (subtitles.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Text('当前视频暂无可用字幕'),
+            ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, -2),
+            child: const Text('字幕外观设置'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || selected == null || cid != ctr.cid.value) return;
+    if (selected == -2) {
+      (ctr.headerCtrKey.currentState as HeaderControlState?)?.showSetSubtitle();
+      return;
+    }
+    try {
+      await ctr.setSubtitle(selected);
+      if (mounted && ctr.vttSubtitlesIndex.value != selected) {
+        SmartDialog.showToast('字幕加载失败，请重试');
+      }
+    } catch (_) {
+      SmartDialog.showToast('字幕加载失败，请重试');
+    }
+  }
+
+  void _showTvEpisodes() {
+    final ctr = videoDetailController;
+    if (ctr.mediaList.isNotEmpty) {
+      ctr.showMediaListPanel(context);
+      return;
+    }
+    if (ctr.isFileSource) {
+      SmartDialog.showToast('请使用上一集 / 下一集切换离线视频');
+      return;
+    }
+    if (ctr.isUgc) {
+      final detail = ugcIntroController.videoDetail.value;
+      if (detail.ugcSeason != null) {
+        showEpisodes(
+          ctr.seasonIndex.value,
+          detail.ugcSeason,
+          null,
+          ctr.bvid,
+          ctr.aid,
+          ctr.cid.value,
+        );
+      } else if (detail.pages?.isNotEmpty == true) {
+        showEpisodes(0, null, detail.pages, ctr.bvid, ctr.aid, ctr.cid.value);
+      } else {
+        SmartDialog.showToast('当前视频没有其他分集');
+      }
+    } else {
+      showEpisodes(
+        0,
+        null,
+        pgcIntroController.pgcItem.episodes,
+        ctr.bvid,
+        ctr.aid,
+        ctr.cid.value,
+      );
+    }
   }
 
   void showEpisodes([

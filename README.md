@@ -27,6 +27,8 @@
 
 ## 适配平台
 
+电视分支的操作说明与验证范围见 [电视端使用与验证](docs/tv-experience.md)。
+
 - [x] Android
 - [x] iOS
 - [x] Pad

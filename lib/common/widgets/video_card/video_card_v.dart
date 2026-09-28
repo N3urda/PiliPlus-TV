@@ -15,6 +15,7 @@ import 'package:PiliPlus/utils/extension/dimension_ext.dart';
 import 'package:PiliPlus/utils/id_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
+import 'package:PiliPlus/utils/tv_platform.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
@@ -137,10 +138,10 @@ class VideoCardV extends StatelessWidget {
           Positioned(
             right: -5,
             bottom: -2,
-            width: 29,
-            height: 29,
+            width: TvPlatform.isTv ? 48 : 29,
+            height: TvPlatform.isTv ? 48 : 29,
             child: VideoPopupMenu(
-              iconSize: 17,
+              iconSize: TvPlatform.isTv ? 24 : 17,
               videoItem: videoItem,
               onRemove: onRemove,
             ),
@@ -153,7 +154,7 @@ class VideoCardV extends StatelessWidget {
     final theme = Theme.of(context);
     return Expanded(
       child: Padding(
-        padding: const .fromLTRB(6, 5, 6, 5),
+        padding: EdgeInsets.fromLTRB(6, 5, TvPlatform.isTv ? 40 : 6, 5),
         child: Column(
           crossAxisAlignment: .start,
           children: [

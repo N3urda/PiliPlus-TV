@@ -12,6 +12,7 @@ import 'package:PiliPlus/utils/extension/widget_ext.dart';
 import 'package:PiliPlus/utils/image_utils.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
+import 'package:PiliPlus/utils/tv_platform.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -33,6 +34,7 @@ class _LoginPageState extends State<LoginPage> {
   final LoginPageController _loginPageCtr = Get.put(LoginPageController());
   // 二维码生成时间
   bool showPassword = false;
+  bool _otherMethods = false;
   GlobalKey globalKey = GlobalKey();
 
   @override
@@ -65,25 +67,26 @@ class _LoginPageState extends State<LoginPage> {
               icon: const Icon(Icons.refresh),
               label: const Text('刷新二维码'),
             ),
-            TextButton.icon(
-              onPressed: () async {
-                SmartDialog.showLoading(msg: '正在生成截图');
-                final boundary =
-                    globalKey.currentContext!.findRenderObject()
-                        as RenderRepaintBoundary;
-                final image = await boundary.toImage(pixelRatio: 3);
-                final byteData = await image.toByteData(format: .png);
-                final pngBytes = byteData!.buffer.asUint8List();
-                image.dispose();
-                SmartDialog.dismiss();
-                final picName =
-                    "${Constants.appName}_loginQRCode_${_loginPageCtr.codeInfo.value.data.authCode.hashCode.toUnsigned(32).toRadixString(16)}";
-                ImageUtils.saveByteImg(bytes: pngBytes, fileName: picName);
-              },
-              icon: const Icon(Icons.save),
-              label: const Text('保存至相册'),
-            ),
-            if (kDebugMode || PlatformUtils.isMobile)
+            if (!TvPlatform.isTv)
+              TextButton.icon(
+                onPressed: () async {
+                  SmartDialog.showLoading(msg: '正在生成截图');
+                  final boundary =
+                      globalKey.currentContext!.findRenderObject()
+                          as RenderRepaintBoundary;
+                  final image = await boundary.toImage(pixelRatio: 3);
+                  final byteData = await image.toByteData(format: .png);
+                  final pngBytes = byteData!.buffer.asUint8List();
+                  image.dispose();
+                  SmartDialog.dismiss();
+                  final picName =
+                      "${Constants.appName}_loginQRCode_${_loginPageCtr.codeInfo.value.data.authCode.hashCode.toUnsigned(32).toRadixString(16)}";
+                  ImageUtils.saveByteImg(bytes: pngBytes, fileName: picName);
+                },
+                icon: const Icon(Icons.save),
+                label: const Text('保存至相册'),
+              ),
+            if (!TvPlatform.isTv && (kDebugMode || PlatformUtils.isMobile))
               TextButton.icon(
                 onPressed: () => PageUtils.launchURL(
                   'bilibili://browser?url=${Uri.encodeComponent(_loginPageCtr.codeInfo.value.data.url)}',
@@ -104,8 +107,8 @@ class _LoginPageState extends State<LoginPage> {
                 child: m3eLoading,
               ),
               Success(:final response) => Container(
-                width: 200,
-                height: 200,
+                width: TvPlatform.isTv ? 240 : 200,
+                height: TvPlatform.isTv ? 240 : 200,
                 color: Colors.white,
                 padding: const EdgeInsets.all(8),
                 child: PrettyQrView.data(
@@ -132,29 +135,30 @@ class _LoginPageState extends State<LoginPage> {
             style: TextStyle(color: theme.colorScheme.secondaryFixedDim),
           ),
         ),
-        Obx(
-          () {
-            final url = _loginPageCtr.codeInfo.value.dataOrNull?.url ?? '';
-            return GestureDetector(
-              onTap: () => Utils.copyText(
-                url,
-                toastText: '已复制到剪贴板，可粘贴至已登录的app私信处发送，然后点击已发送的链接打开',
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 20,
-                ),
-                child: Text(
+        if (!TvPlatform.isTv)
+          Obx(
+            () {
+              final url = _loginPageCtr.codeInfo.value.dataOrNull?.url ?? '';
+              return GestureDetector(
+                onTap: () => Utils.copyText(
                   url,
-                  style: theme.textTheme.labelSmall!.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                  toastText: '已复制到剪贴板，可粘贴至已登录的app私信处发送，然后点击已发送的链接打开',
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 20,
+                  ),
+                  child: Text(
+                    url,
+                    style: theme.textTheme.labelSmall!.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
                   ),
                 ),
-              ),
-            );
-          },
-        ),
+              );
+            },
+          ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(
@@ -515,6 +519,26 @@ class _LoginPageState extends State<LoginPage> {
         MediaQuery.viewPaddingOf(context).copyWith(top: 0) +
         const EdgeInsets.only(bottom: 25);
     final isLandscape = !MediaQuery.sizeOf(context).isPortrait;
+    if (TvPlatform.isTv && !_otherMethods) {
+      return SimpleScaffold(
+        appBar: AppBar(
+          title: const Text('扫码登录'),
+          actions: [
+            TextButton(
+              onPressed: () => setState(() {
+                _otherMethods = true;
+                _loginPageCtr.tabController.index = 0;
+              }),
+              child: const Text('其他登录方式'),
+            ),
+            TextButton(onPressed: Get.back, child: const Text('暂不登录')),
+            const SizedBox(width: 24),
+          ],
+        ),
+        body: Center(child: SingleChildScrollView(child: loginByQRCode(theme))),
+      );
+    }
+
     return SimpleScaffold(
       appBar: AppBar(
         leading: IconButton(

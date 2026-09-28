@@ -11,6 +11,11 @@ import 'package:PiliPlus/models_new/search/search_rcmd/data.dart';
 import 'package:PiliPlus/pages/search/controller.dart';
 import 'package:PiliPlus/pages/search/widgets/hot_keyword.dart';
 import 'package:PiliPlus/pages/search/widgets/search_text.dart';
+import 'package:PiliPlus/pages/search/widgets/tv_phone_input.dart';
+import 'package:PiliPlus/pages/search/widgets/tv_search_field.dart';
+import 'package:PiliPlus/utils/tv_platform.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:PiliPlus/utils/em.dart' show Em;
 import 'package:PiliPlus/utils/extension/size_ext.dart';
 import 'package:PiliPlus/utils/storage.dart';
@@ -27,6 +32,33 @@ class SearchPage extends StatefulWidget {
 }
 
 class _SearchPageState extends State<SearchPage> {
+  bool _recognizing = false;
+
+  Future<void> _voiceSearch() async {
+    if (_recognizing) return;
+    setState(() => _recognizing = true);
+    try {
+      final text = await TvPlatform.recognizeSpeech();
+      if (mounted && text != null && text.trim().isNotEmpty) {
+        _searchController.onClickKeyword(text.trim());
+      }
+    } on PlatformException catch (e) {
+      SmartDialog.showToast(e.message ?? '语音服务不可用，请使用手机输入');
+    } on MissingPluginException {
+      SmartDialog.showToast('此设备不支持语音搜索，请使用手机输入');
+    } finally {
+      if (mounted) setState(() => _recognizing = false);
+    }
+  }
+
+  Future<void> _phoneSearch() async {
+    final text = await showDialog<String>(
+      context: context,
+      builder: (_) => const TvPhoneInput(),
+    );
+    if (mounted && text != null) _searchController.onClickKeyword(text);
+  }
+
   final _tag = Utils.generateRandomString(6);
   late final SSearchController _searchController;
   late ThemeData theme;
@@ -93,6 +125,18 @@ class _SearchPageState extends State<SearchPage> {
       ),
     ),
     actions: [
+      if (TvPlatform.isTv) ...[
+        IconButton(
+          tooltip: '语音搜索',
+          onPressed: _recognizing ? null : _voiceSearch,
+          icon: const Icon(Icons.mic),
+        ),
+        IconButton(
+          tooltip: '手机扫码输入',
+          onPressed: _phoneSearch,
+          icon: const Icon(Icons.qr_code),
+        ),
+      ],
       Obx(
         () => _searchController.showUidBtn.value
             ? IconButton(
@@ -116,19 +160,26 @@ class _SearchPageState extends State<SearchPage> {
       ),
       const SizedBox(width: 10),
     ],
-    title: TextField(
-      autofocus: true,
-      focusNode: _searchController.searchFocusNode,
-      controller: _searchController.controller,
-      textInputAction: TextInputAction.search,
-      onChanged: _searchController.onChange,
-      decoration: InputDecoration(
-        visualDensity: .standard,
-        hintText: _searchController.hintText ?? '搜索',
-        border: InputBorder.none,
-      ),
-      onSubmitted: (value) => _searchController.submit(),
-    ),
+    title: TvPlatform.isTv
+        ? TvSearchField(
+            controller: _searchController.controller,
+            onChanged: _searchController.onChange,
+            onSubmit: _searchController.submit,
+            hint: _searchController.hintText,
+          )
+        : TextField(
+            autofocus: true,
+            focusNode: _searchController.searchFocusNode,
+            controller: _searchController.controller,
+            textInputAction: TextInputAction.search,
+            onChanged: _searchController.onChange,
+            decoration: InputDecoration(
+              visualDensity: .standard,
+              hintText: _searchController.hintText ?? '搜索',
+              border: InputBorder.none,
+            ),
+            onSubmitted: (value) => _searchController.submit(),
+          ),
   );
 
   Widget _buildSearchSuggest() {

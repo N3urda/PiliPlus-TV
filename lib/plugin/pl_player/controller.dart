@@ -45,6 +45,7 @@ import 'package:PiliPlus/utils/platform_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
+import 'package:PiliPlus/utils/tv_platform.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:archive/archive.dart' show getCrc32;
 import 'package:canvas_danmaku/canvas_danmaku.dart';
@@ -112,6 +113,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   final RxDouble brightness = (-1.0).obs;
 
   final RxBool showControls = false.obs;
+  final RxBool tvControlsVisible = false.obs;
 
   final RxBool showBrightnessStatus = false.obs;
 
@@ -1521,6 +1523,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   bool get isCloseAll => _isCloseAll;
 
   Future<void>? resetScreenRotation() {
+    if (TvPlatform.isTv) return landscapeLeftMode();
     if (horizontalScreen) {
       return fullMode();
     } else {
@@ -1721,6 +1724,10 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       return;
     }
 
+    if (tvControlsVisible.value) {
+      tvControlsVisible.value = false;
+      return;
+    }
     if (controlsLock.value) {
       onLockControl(false);
       return;

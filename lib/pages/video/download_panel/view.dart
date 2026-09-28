@@ -155,9 +155,15 @@ class _DownloadPanelState extends State<DownloadPanel> {
               stream: Connectivity().onConnectivityChanged,
               builder: (context, snapshot) {
                 if (snapshot.data case final data?) {
-                  final network = data.contains(ConnectivityResult.wifi)
-                      ? 'WIFI'
-                      : '数据';
+                  final network = data.contains(ConnectivityResult.ethernet)
+                      ? '有线网络'
+                      : data.contains(ConnectivityResult.wifi)
+                      ? 'Wi-Fi'
+                      : data.contains(ConnectivityResult.mobile)
+                      ? '移动数据'
+                      : data.contains(ConnectivityResult.none)
+                      ? '未连接'
+                      : '其他网络';
                   return Text('当前网络：$network', style: textStyle);
                 }
                 return const SizedBox.shrink();

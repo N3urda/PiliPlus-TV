@@ -6,6 +6,8 @@ import 'package:PiliPlus/pages/common/common_intro_controller.dart';
 import 'package:PiliPlus/pages/video/introduction/ugc/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
+import 'package:PiliPlus/utils/tv_platform.dart';
+import 'package:PiliPlus/pages/video/widgets/tv_player_controls.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:flutter/services.dart'
@@ -23,6 +25,7 @@ class PlayerFocus extends StatelessWidget {
     this.canPlay,
     this.onSkipSegment,
     this.onRefresh,
+    this.tvActions = const [],
   });
 
   final Widget child;
@@ -32,6 +35,7 @@ class PlayerFocus extends StatelessWidget {
   final ValueGetter<bool>? canPlay;
   final ValueGetter<bool>? onSkipSegment;
   final VoidCallback? onRefresh;
+  final List<TvPlayerAction> tvActions;
 
   static bool _shouldHandle(LogicalKeyboardKey logicalKey) {
     return logicalKey == LogicalKeyboardKey.tab ||
@@ -43,6 +47,16 @@ class PlayerFocus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (TvPlatform.isTv) {
+      return TvPlayerControls(
+        player: plPlayerController,
+        intro: introController,
+        canPlay: canPlay,
+        actions: tvActions,
+        onRefresh: onRefresh,
+        child: child,
+      );
+    }
     return Focus(
       autofocus: true,
       onKeyEvent: (node, event) {

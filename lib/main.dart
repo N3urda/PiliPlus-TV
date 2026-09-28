@@ -7,6 +7,8 @@ import 'package:PiliPlus/common/widgets/custom_toast.dart';
 import 'package:PiliPlus/common/widgets/route_aware_mixin.dart';
 import 'package:PiliPlus/common/widgets/scale_app.dart';
 import 'package:PiliPlus/common/widgets/scroll_behavior.dart';
+import 'package:PiliPlus/common/widgets/tv/tv_navigation.dart';
+import 'package:PiliPlus/utils/tv_platform.dart';
 import 'package:PiliPlus/http/init.dart';
 import 'package:PiliPlus/models/common/theme/theme_color_type.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
@@ -91,6 +93,7 @@ Future<void> _initAppPath() async {
 
 void main() async {
   ScaledWidgetsFlutterBinding.ensureInitialized();
+  await TvPlatform.initialize();
   MediaKit.ensureInitialized();
   await _initAppPath();
   try {
@@ -115,7 +118,12 @@ void main() async {
   if (PlatformUtils.isMobile) {
     if (Platform.isAndroid) MaxScreenSize.init();
     await Future.wait([
-      if (Pref.horizontalScreen) ?fullMode() else ?portraitUpMode(),
+      if (TvPlatform.isTv)
+        ?landscapeLeftMode()
+      else if (Pref.horizontalScreen)
+        ?fullMode()
+      else
+        ?portraitUpMode(),
       setupServiceLocator(),
     ]);
   } else if (Platform.isWindows) {
@@ -303,6 +311,7 @@ class MyApp extends StatelessWidget {
       ),
       navigatorObservers: [
         routeObserver,
+        if (TvPlatform.isTv) TvNavigationObserver(),
         FlutterSmartDialog.observer,
       ],
       scrollBehavior: PlatformUtils.isDesktop
@@ -337,6 +346,7 @@ class MyApp extends StatelessWidget {
         child: child!,
       );
     }
+    if (TvPlatform.isTv) child = TvNavigation(child: child);
     if (PlatformUtils.isDesktop) {
       return BackDetector(
         onBack: _onBack,

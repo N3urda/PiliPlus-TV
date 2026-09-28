@@ -38,6 +38,7 @@ import 'package:PiliPlus/utils/extension/iterable_ext.dart';
 import 'package:PiliPlus/utils/global_data.dart';
 import 'package:PiliPlus/utils/login_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
+import 'package:PiliPlus/utils/tv_platform.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/utils.dart';
@@ -92,7 +93,9 @@ abstract final class Pref {
 
   static int get _themeTypeInt => _setting.get(
     SettingBoxKey.themeMode,
-    defaultValue: ThemeType.system.index,
+    defaultValue: TvPlatform.isTv
+        ? ThemeType.dark.index
+        : ThemeType.system.index,
   );
 
   static ThemeType get themeType => ThemeType.values[_themeTypeInt];
@@ -186,8 +189,10 @@ abstract final class Pref {
   static double get smallCardWidth =>
       _setting.get(SettingBoxKey.smallCardWidth, defaultValue: 240.0);
 
-  static double get recommendCardWidth =>
-      _setting.get(SettingBoxKey.recommendCardWidth, defaultValue: 240.0);
+  static double get recommendCardWidth => _setting.get(
+    SettingBoxKey.recommendCardWidth,
+    defaultValue: TvPlatform.isTv ? 300.0 : 240.0,
+  );
 
   static UpPanelPosition get upPanelPosition =>
       UpPanelPosition.values[_setting.get(
@@ -196,6 +201,7 @@ abstract final class Pref {
       )];
 
   static FullScreenMode get fullScreenMode {
+    if (TvPlatform.isTv) return FullScreenMode.none;
     int? index = _setting.get(SettingBoxKey.fullScreenMode);
     if (index == null) {
       final FullScreenMode mode = horizontalScreen && DeviceUtils.isTablet
@@ -622,6 +628,7 @@ abstract final class Pref {
       _setting.get(SettingBoxKey.optTabletNav, defaultValue: true);
 
   static bool get horizontalScreen {
+    if (TvPlatform.isTv) return true;
     bool? horizontalScreen = _setting.get(SettingBoxKey.horizontalScreen);
     if (horizontalScreen == null) {
       final isTablet = DeviceUtils.isTablet;
@@ -666,11 +673,13 @@ abstract final class Pref {
   static bool get enableWordRe =>
       _setting.get(SettingBoxKey.enableWordRe, defaultValue: false);
 
-  static bool get autoExitFullscreen =>
-      _setting.get(SettingBoxKey.enableAutoExit, defaultValue: true);
+  static bool get autoExitFullscreen => _setting.get(
+    SettingBoxKey.enableAutoExit,
+    defaultValue: !TvPlatform.isTv,
+  );
 
   static bool get autoPlayEnable =>
-      _setting.get(SettingBoxKey.autoPlayEnable, defaultValue: false);
+      _setting.get(SettingBoxKey.autoPlayEnable, defaultValue: TvPlatform.isTv);
 
   static bool get pipNoDanmaku =>
       _setting.get(SettingBoxKey.pipNoDanmaku, defaultValue: false);
@@ -678,8 +687,10 @@ abstract final class Pref {
   static bool get enableVerticalExpand =>
       _setting.get(SettingBoxKey.enableVerticalExpand, defaultValue: false);
 
-  static double get defaultTextScale =>
-      _setting.get(SettingBoxKey.defaultTextScale, defaultValue: 1.0);
+  static double get defaultTextScale => _setting.get(
+    SettingBoxKey.defaultTextScale,
+    defaultValue: TvPlatform.isTv ? 1.2 : 1.0,
+  );
 
   static double get uiScale =>
       _setting.get(SettingBoxKey.uiScale, defaultValue: 1.0);
@@ -709,7 +720,7 @@ abstract final class Pref {
       _setting.get(SettingBoxKey.enableSearchWord, defaultValue: false);
 
   static bool get useSideBar =>
-      _setting.get(SettingBoxKey.useSideBar, defaultValue: false);
+      _setting.get(SettingBoxKey.useSideBar, defaultValue: TvPlatform.isTv);
 
   static bool get dynamicsShowAllFollowedUp => _setting.get(
     SettingBoxKey.dynamicsShowAllFollowedUp,
@@ -857,8 +868,10 @@ abstract final class Pref {
   static bool get enableOnlineTotal =>
       _setting.get(SettingBoxKey.enableOnlineTotal, defaultValue: false);
 
-  static bool get autoEnterFullScreen =>
-      _setting.get(SettingBoxKey.enableAutoEnter, defaultValue: false);
+  static bool get autoEnterFullScreen => _setting.get(
+    SettingBoxKey.enableAutoEnter,
+    defaultValue: TvPlatform.isTv,
+  );
 
   static bool get enableAutoLongPressSpeed =>
       _setting.get(SettingBoxKey.enableAutoLongPressSpeed, defaultValue: false);
@@ -915,11 +928,13 @@ abstract final class Pref {
     return null;
   }
 
-  static bool get showFsScreenshotBtn =>
-      _setting.get(SettingBoxKey.showFsScreenshotBtn, defaultValue: true);
+  static bool get showFsScreenshotBtn => _setting.get(
+    SettingBoxKey.showFsScreenshotBtn,
+    defaultValue: !TvPlatform.isTv,
+  );
 
   static bool get showFsLockBtn =>
-      _setting.get(SettingBoxKey.showFsLockBtn, defaultValue: true);
+      _setting.get(SettingBoxKey.showFsLockBtn, defaultValue: !TvPlatform.isTv);
 
   static bool get silentDownImg =>
       _setting.get(SettingBoxKey.silentDownImg, defaultValue: false);

@@ -43,6 +43,7 @@ import 'package:PiliPlus/utils/max_screen_size.dart';
 import 'package:PiliPlus/utils/mobile_observer.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
+import 'package:PiliPlus/utils/tv_platform.dart';
 import 'package:PiliPlus/utils/share_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
@@ -226,11 +227,12 @@ class _LiveRoomPageState extends State<LiveRoomPage>
     } else {
       child = childWhenDisabled;
     }
-    if (plPlayerController.keyboardControl) {
+    if (TvPlatform.isTv || plPlayerController.keyboardControl) {
       child = PlayerFocus(
         plPlayerController: plPlayerController,
         onSendDanmaku: _liveRoomController.onSendDanmaku,
         onRefresh: _liveRoomController.queryLiveUrl,
+        tvActions: [(label: '画质', onPressed: _showTvQuality)],
         child: child,
       );
     }
@@ -238,6 +240,32 @@ class _LiveRoomPageState extends State<LiveRoomPage>
       data: ThemeUtils.darkTheme,
       child: child,
     );
+  }
+
+  Future<void> _showTvQuality() async {
+    final qualities = _liveRoomController.acceptQnList;
+    if (qualities.isEmpty) {
+      SmartDialog.showToast('当前直播暂无可选画质');
+      return;
+    }
+    final selected = await showDialog<int>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('直播画质'),
+        children: [
+          for (final quality in qualities)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, quality.code),
+              child: Text(
+                '${quality.desc}${_liveRoomController.currentQn == quality.code ? '  ✓' : ''}',
+              ),
+            ),
+        ],
+      ),
+    );
+    if (mounted && selected != null) {
+      await _liveRoomController.changeQn(selected);
+    }
   }
 
   Widget videoPlayerPanel(
@@ -367,10 +395,15 @@ class _LiveRoomPageState extends State<LiveRoomPage>
         ],
       );
     }
-    return popScope(
-      canPop: !isFullScreen && !plPlayerController.isDesktopPip,
-      onPopInvokedWithResult: plPlayerController.onPopInvokedWithResult,
-      child: player,
+    return Obx(
+      () => popScope(
+        canPop:
+            !plPlayerController.tvControlsVisible.value &&
+            !isFullScreen &&
+            !plPlayerController.isDesktopPip,
+        onPopInvokedWithResult: plPlayerController.onPopInvokedWithResult,
+        child: player,
+      ),
     );
   }
 

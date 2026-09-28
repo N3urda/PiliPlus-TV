@@ -844,15 +844,17 @@ class VideoDetailController extends GetxController
       querySponsorBlock(bvid: bvid, cid: cid.value);
     }
     if (plPlayerController.cacheVideoQa == null) {
-      final isWiFi = await ConnectivityUtils.isWiFi;
+      final isBroadband = await ConnectivityUtils.isBroadband;
       plPlayerController
-        ..cacheVideoQa = isWiFi
+        ..cacheVideoQa = isBroadband
             ? Pref.defaultVideoQa
             : Pref.defaultVideoQaCellular
-        ..cacheAudioQa = isWiFi
+        ..cacheAudioQa = isBroadband
             ? Pref.defaultAudioQa
             : Pref.defaultAudioQaCellular;
-      preferCodecs = isWiFi ? Pref.preferCodecs : Pref.preferCodecsCellular;
+      preferCodecs = isBroadband
+          ? Pref.preferCodecs
+          : Pref.preferCodecsCellular;
     }
 
     final result = await _getVideoUrl(VideoQuality.hdrVivid.code);

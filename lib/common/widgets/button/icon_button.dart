@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:PiliPlus/utils/tv_platform.dart';
 
 Widget iconButton({
   BuildContext? context,
@@ -18,8 +19,8 @@ Widget iconButton({
     foregroundColor = colorScheme.onSecondaryContainer;
   }
   return SizedBox(
-    width: size,
-    height: size,
+    width: TvPlatform.isTv && size < 48 ? 48 : size,
+    height: TvPlatform.isTv && size < 48 ? 48 : size,
     child: IconButton(
       icon: icon,
       tooltip: tooltip,

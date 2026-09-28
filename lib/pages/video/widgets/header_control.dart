@@ -972,7 +972,7 @@ class HeaderControlState extends State<HeaderControl>
                         // update
                         if (!plPlayerController.tempPlayerConf) {
                           setting.put(
-                            await ConnectivityUtils.isWiFi
+                            await ConnectivityUtils.isBroadband
                                 ? SettingBoxKey.defaultVideoQa
                                 : SettingBoxKey.defaultVideoQaCellular,
                             quality,
@@ -1052,7 +1052,7 @@ class HeaderControlState extends State<HeaderControl>
                         // update
                         if (!plPlayerController.tempPlayerConf) {
                           setting.put(
-                            await ConnectivityUtils.isWiFi
+                            await ConnectivityUtils.isBroadband
                                 ? SettingBoxKey.defaultAudioQa
                                 : SettingBoxKey.defaultAudioQaCellular,
                             quality,

@@ -13,6 +13,7 @@ import 'package:PiliPlus/pages/login/geetest/geetest_webview_dialog.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/accounts/account.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
+import 'package:PiliPlus/utils/tv_platform.dart';
 import 'package:PiliPlus/utils/theme_utils.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
@@ -22,6 +23,15 @@ import 'package:material_ui/material_ui.dart';
 
 class LoginPageController extends GetxController
     with GetSingleTickerProviderStateMixin {
+  LoginPageController({
+    this.loadQrCode = LoginHttp.getHDcode,
+    this.pollQrCode = LoginHttp.codePoll,
+  });
+
+  final Future<LoadingState<({String authCode, String url})>> Function()
+  loadQrCode;
+  final Future<dynamic> Function(String) pollQrCode;
+
   final TextEditingController telTextController = TextEditingController();
   final TextEditingController usernameTextController = TextEditingController();
   final TextEditingController passwordTextController = TextEditingController();
@@ -47,16 +57,22 @@ class LoginPageController extends GetxController
   Timer? smsSendCooldownTimer;
 
   bool _isReq = false;
+  int _qrGeneration = 0;
 
   @override
   void onInit() {
     super.onInit();
-    tabController = TabController(length: 4, vsync: this)
-      ..addListener(_handleTabChange);
+    tabController = TabController(
+      length: 4,
+      initialIndex: TvPlatform.isTv ? 2 : 0,
+      vsync: this,
+    )..addListener(_handleTabChange);
+    if (TvPlatform.isTv) refreshQRCode();
   }
 
   @override
   void onClose() {
+    _qrGeneration++;
     tabController
       ..removeListener(_handleTabChange)
       ..dispose();
@@ -71,40 +87,71 @@ class LoginPageController extends GetxController
   }
 
   Future<void> refreshQRCode() async {
-    final res = await LoginHttp.getHDcode();
-    if (res case Success(:final response)) {
-      qrCodeTimer?.cancel();
+    final generation = ++_qrGeneration;
+    qrCodeTimer?.cancel();
+    _isReq = false;
+    codeInfo.value = LoadingState.loading();
+    statusQRCode.value = '正在获取二维码';
+    qrCodeLeftTime.value = 180;
+    try {
+      final res = await loadQrCode().timeout(
+        const Duration(seconds: 15),
+      );
+      if (generation != _qrGeneration) return;
       codeInfo.value = res;
-      qrCodeTimer = Timer.periodic(const Duration(milliseconds: 1000), (t) {
-        final left = 180 - t.tick;
-        if (left <= 0) {
-          t.cancel();
-          statusQRCode.value = '二维码已过期，请刷新';
-          qrCodeLeftTime.value = 0;
-          return;
-        }
-        qrCodeLeftTime.value = left;
-        if (_isReq || tabController.index != 2) return;
-
-        _isReq = true;
-        LoginHttp.codePoll(response.authCode).then((value) async {
-          _isReq = false;
-          if (value['status']) {
-            t.cancel();
-            statusQRCode.value = '扫码成功';
-            await setAccount(
-              value['data'],
-              value['data']['cookie_info']['cookies'],
-            );
-            Get.back();
-          } else if (value['code'] == 86038) {
-            t.cancel();
+      if (res case Success(:final response)) {
+        statusQRCode.value = '请使用手机 bilibili App 扫码';
+        final expiresAt = DateTime.now().add(const Duration(seconds: 180));
+        qrCodeTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          final left = expiresAt.difference(DateTime.now()).inSeconds;
+          if (left <= 0) {
+            timer.cancel();
+            statusQRCode.value = '二维码已过期，请选择刷新二维码';
             qrCodeLeftTime.value = 0;
-          } else {
-            statusQRCode.value = value['msg'];
+            return;
+          }
+          qrCodeLeftTime.value = left;
+          if (!_isReq && tabController.index == 2) {
+            _pollQRCode(response.authCode, generation, timer);
           }
         });
-      });
+      } else {
+        statusQRCode.value = '获取失败，请检查网络后重试';
+      }
+    } catch (_) {
+      if (generation != _qrGeneration) return;
+      codeInfo.value = const Error('二维码加载失败，请检查网络后重试');
+      statusQRCode.value = '获取失败';
+    }
+  }
+
+  Future<void> _pollQRCode(String authCode, int generation, Timer timer) async {
+    _isReq = true;
+    try {
+      final value = await pollQrCode(authCode)
+          .timeout(const Duration(seconds: 10));
+      if (generation != _qrGeneration || !timer.isActive) return;
+      if (value['status'] == true) {
+        timer.cancel();
+        statusQRCode.value = '扫码成功，正在登录';
+        await setAccount(
+          value['data'],
+          value['data']['cookie_info']['cookies'],
+        );
+        if (generation == _qrGeneration) Get.back();
+      } else if (value['code'] == 86038) {
+        timer.cancel();
+        qrCodeLeftTime.value = 0;
+        statusQRCode.value = '二维码已过期，请选择刷新二维码';
+      } else {
+        statusQRCode.value = value['msg']?.toString() ?? '等待手机确认';
+      }
+    } catch (_) {
+      if (generation == _qrGeneration) {
+        statusQRCode.value = '网络暂时不可用，请稍候或刷新二维码';
+      }
+    } finally {
+      if (generation == _qrGeneration) _isReq = false;
     }
   }
 
