@@ -13,6 +13,7 @@ val agpMajorVersion = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION
 val builtInKotlinProperty = providers.gradleProperty("android.builtInKotlin").orNull
 val isBuiltInKotlinEnabled = agpMajorVersion >= 9 &&
         (builtInKotlinProperty == null || builtInKotlinProperty.toBoolean())
+val isTvPreview = project.hasProperty("tvPreview")
 if (!isBuiltInKotlinEnabled) {
     apply(plugin = "org.jetbrains.kotlin.android")
 }
@@ -28,7 +29,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.piliplus"
+        applicationId = if (isTvPreview) "com.n3urda.piliplustv.preview" else "com.example.piliplus"
         minSdk = flutter.minSdkVersion
         targetSdk = 37
         versionCode = flutter.versionCode
@@ -55,7 +56,7 @@ android {
     }
 
     buildFeatures {
-        if (project.hasProperty("dev")) {
+        if (isTvPreview || project.hasProperty("dev")) {
             resValues = true
         }
     }
@@ -65,6 +66,9 @@ android {
             signingConfig = config ?: signingConfigs["debug"]
         }
         release {
+            if (isTvPreview) {
+                resValue("string", "app_name", "PiliPlus TV Preview")
+            }
             if (project.hasProperty("dev")) {
                 applicationIdSuffix = ".dev"
                 resValue(

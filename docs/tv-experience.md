@@ -47,6 +47,24 @@ flutter build apk --debug --target-platform android-arm64 --no-pub
 
 本地单元 / 组件测试及模拟器结果不替代真实电视验收。实际电视仍需确认遥控器厂商键值、语音服务、4K / HDR 解码、手机跨设备局域网连接、登录后的账号内容，以及同签名版本的覆盖安装。
 
+## main 分支独立测试版
+
+现有 `tv-v0.3.4-alpha.1` 来自 `codex/android-tv-mvp`，使用 `com.n3urda.piliplustv` 包名。本轮完整功能电视适配在 `main`，以 `tv-main-v0.4.0-alpha.1` 独立预发布，不替换原电视专用分支。
+
+安装后的名称为 **PiliPlus TV Preview**，包名为 `com.n3urda.piliplustv.preview`，版本 `0.4.0-alpha.1+8`。可与旧 TV 版和原版 PiliPlus 共存，账号和设置各自保存，需要重新登录。测试包为 ARM64 release 构建，使用本地测试签名；今后覆盖此 Preview 包需要沿用相同签名。原有应用默认构建包名保持不变，只有显式传入 `tvPreview` 才启用独立包名。
+
+```sh
+flutter build apk --release --split-per-abi --target-platform android-arm64 --no-pub \
+  --android-project-arg tvPreview=1 \
+  --build-name=0.4.0-alpha.1 --build-number=8 \
+  --dart-define=PILIPLUS_TV=true \
+  --dart-define=pili.name=0.4.0-alpha.1 --dart-define=pili.code=8 \
+  --dart-define=pili.hash="$(git rev-parse HEAD)" \
+  --dart-define=pili.time="$(date +%s)"
+```
+
+发布时上传 `app-arm64-v8a-release.apk` 的重命名副本及 `SHA256SUMS`。此预发布不设为 GitHub Latest；应用内更新目前只检查正式 Release，因此此测试版需从发布页手动下载。
+
 ### 本次检查记录（2026-09-28）
 
 环境：Flutter 3.47.5 / Dart 3.13.4，仓库现有 Flutter 和 material_ui 补丁；独立 Android TV API 36、ARM64、1920×1080 模拟器。构建目标使用项目配置的 API 37.0。
