@@ -1,5 +1,6 @@
 import 'package:PiliPlus/models/model_video.dart';
 import 'package:PiliPlus/tv/widgets/tv_video_card.dart';
+import 'package:PiliPlus/tv/tv_video_entry.dart';
 import 'package:material_ui/material_ui.dart';
 
 class TvVideoRow extends StatelessWidget {
@@ -10,6 +11,9 @@ class TvVideoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final playable = videos
+        .where((video) => video.bvid?.startsWith('BV') ?? false)
+        .toList();
     final availableWidth = MediaQuery.sizeOf(context).width - 96;
     final cardWidth = ((availableWidth - 42) / 4).clamp(178.0, 245.0);
     return Column(
@@ -23,7 +27,7 @@ class TvVideoRow extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Text(
-              '${videos.length} 条视频',
+              '${playable.length} 条视频',
               style: const TextStyle(fontSize: 14, color: Colors.white60),
             ),
           ],
@@ -33,10 +37,10 @@ class TvVideoRow extends StatelessWidget {
           height: 207,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            itemCount: videos.length,
+            itemCount: playable.length,
             separatorBuilder: (_, _) => const SizedBox(width: 14),
             itemBuilder: (context, index) => TvVideoCard(
-              video: videos[index],
+              video: TvVideoEntry.fromVideo(playable[index]),
               width: cardWidth,
               compact: true,
             ),

@@ -1,4 +1,4 @@
-import 'package:PiliPlus/models/search/result.dart';
+import 'package:PiliPlus/tv/tv_video_entry.dart';
 import 'package:PiliPlus/tv/widgets/tv_action.dart';
 import 'package:PiliPlus/tv/widgets/tv_video_card.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
@@ -10,13 +10,15 @@ class TvSearchResults extends StatelessWidget {
     required this.results,
     required this.total,
     required this.loading,
+    required this.hasMore,
     required this.onLoadMore,
     required this.firstResultFocus,
   });
 
-  final List<SearchVideoItemModel> results;
+  final List<TvVideoEntry> results;
   final int total;
   final bool loading;
+  final bool hasMore;
   final VoidCallback onLoadMore;
   final FocusNode firstResultFocus;
 
@@ -51,13 +53,14 @@ class TvSearchResults extends StatelessWidget {
                 mainAxisSpacing: 18,
               ),
               itemBuilder: (context, index) => TvVideoCard(
+                key: ValueKey(results[index].bvid),
                 video: results[index],
                 width: double.infinity,
                 focusNode: index == 0 ? firstResultFocus : null,
               ),
             ),
           ),
-          if (results.length < total)
+          if (hasMore)
             SliverToBoxAdapter(
               child: Align(
                 alignment: Alignment.centerLeft,

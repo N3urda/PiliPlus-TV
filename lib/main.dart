@@ -9,6 +9,7 @@ import 'package:PiliPlus/common/widgets/scale_app.dart';
 import 'package:PiliPlus/common/widgets/scroll_behavior.dart';
 import 'package:PiliPlus/http/init.dart';
 import 'package:PiliPlus/models/common/theme/theme_color_type.dart';
+import 'package:PiliPlus/models/common/video/video_quality.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
 import 'package:PiliPlus/router/app_pages.dart';
 import 'package:PiliPlus/services/account_service.dart';
@@ -16,6 +17,8 @@ import 'package:PiliPlus/services/download/download_service.dart';
 import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/tv/tv_mode.dart';
+import 'package:PiliPlus/tv/tv_memory_policy.dart';
+import 'package:PiliPlus/tv/tv_performance_probe.dart';
 import 'package:PiliPlus/tv/tv_routes.dart';
 import 'package:PiliPlus/utils/cache_manager.dart';
 import 'package:PiliPlus/utils/calc_window_position.dart';
@@ -103,15 +106,20 @@ void main() async {
     exit(0);
   }
   if (TvMode.enabled) {
-    PaintingBinding.instance.imageCache
-      ..maximumSizeBytes = 48 << 20
-      ..maximumSize = 120;
+    TvMemoryPolicy().install();
+    if (TvPerformanceProbe.enabled) TvPerformanceProbe.install();
     await GStorage.setting.put(SettingBoxKey.horizontalScreen, true);
     await GStorage.setting.put(SettingBoxKey.autoPlayEnable, true);
     await GStorage.setting.put(SettingBoxKey.enableAutoEnter, true);
     await GStorage.setting.put(SettingBoxKey.keyboardControl, true);
     await GStorage.setting.put(SettingBoxKey.showVideoReply, false);
     await GStorage.setting.put(SettingBoxKey.showRelatedVideo, false);
+    if (!GStorage.setting.containsKey(SettingBoxKey.defaultVideoQa)) {
+      await GStorage.setting.put(
+        SettingBoxKey.defaultVideoQa,
+        VideoQuality.high1080.code,
+      );
+    }
     if (!GStorage.setting.containsKey(SettingBoxKey.enableShowDanmaku)) {
       await GStorage.setting.put(SettingBoxKey.enableShowDanmaku, false);
     }

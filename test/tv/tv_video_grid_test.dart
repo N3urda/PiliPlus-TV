@@ -5,6 +5,46 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('long TV feeds release distant cards and remain browsable', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(960, 540));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final videos = List.generate(
+      1000,
+      (index) => TvVideoEntry(
+        bvid: 'BV$index',
+        title: '视频 $index',
+        owner: 'UP',
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TvVideoGrid(
+            videos: videos,
+            onOpen: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(TvCinematicVideoCard).evaluate().length, lessThan(40));
+    final position = tester
+        .state<ScrollableState>(find.byType(Scrollable))
+        .position;
+    position.jumpTo(position.maxScrollExtent);
+    await tester.pumpAndSettle();
+    expect(find.text('视频 999'), findsOneWidget);
+    expect(find.text('视频 0'), findsNothing);
+    expect(find.byType(TvCinematicVideoCard).evaluate().length, lessThan(40));
+    position.jumpTo(0);
+    await tester.pumpAndSettle();
+    expect(find.text('视频 0'), findsOneWidget);
+    expect(find.text('视频 999'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('TV grid fits 18 videos in six columns and OK opens focus', (
     tester,
   ) async {

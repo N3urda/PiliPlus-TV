@@ -6,13 +6,14 @@ import 'package:PiliPlus/pages/danmaku/danmaku_model.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart';
+import 'package:PiliPlus/tv/tv_mode.dart';
 import 'package:PiliPlus/utils/danmaku_utils.dart';
 import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// 传入播放器控制器，监听播放进度，加载对应弹幕
-class PlDanmaku extends StatefulWidget {
+class PlDanmaku extends StatelessWidget {
   final int cid;
   final PlPlayerController playerController;
   final bool isPipMode;
@@ -31,13 +32,30 @@ class PlDanmaku extends StatefulWidget {
   });
 
   @override
-  State<PlDanmaku> createState() => _PlDanmakuState();
+  Widget build(BuildContext context) {
+    if (!TvMode.enabled) return _ActivePlDanmaku(configuration: this);
+    return Obx(
+      () => playerController.enableShowDanmaku.value
+          ? _ActivePlDanmaku(configuration: this)
+          : const SizedBox.shrink(),
+    );
+  }
 
   bool get notFullscreen => !isFullScreen || isPipMode;
 }
 
-class _PlDanmakuState extends State<PlDanmaku> {
-  PlPlayerController get playerController => widget.playerController;
+class _ActivePlDanmaku extends StatefulWidget {
+  const _ActivePlDanmaku({required this.configuration});
+
+  final PlDanmaku configuration;
+
+  @override
+  State<_ActivePlDanmaku> createState() => _PlDanmakuState();
+}
+
+class _PlDanmakuState extends State<_ActivePlDanmaku> {
+  PlDanmaku get configuration => widget.configuration;
+  PlPlayerController get playerController => configuration.playerController;
 
   late final PlDanmakuController _plDanmakuController;
   DanmakuController<DanmakuExtra>? _controller;
@@ -47,12 +65,12 @@ class _PlDanmakuState extends State<PlDanmaku> {
   void initState() {
     super.initState();
     _plDanmakuController = PlDanmakuController(
-      widget.cid,
+      configuration.cid,
       playerController,
-      widget.isFileSource,
+      configuration.isFileSource,
     );
     if (playerController.enableShowDanmaku.value) {
-      if (widget.isFileSource) {
+      if (configuration.isFileSource) {
         _plDanmakuController.initFileDmIfNeeded();
       } else {
         _plDanmakuController.queryDanmaku(
@@ -66,12 +84,12 @@ class _PlDanmakuState extends State<PlDanmaku> {
   }
 
   @override
-  void didUpdateWidget(PlDanmaku oldWidget) {
+  void didUpdateWidget(_ActivePlDanmaku oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.notFullscreen != widget.notFullscreen &&
+    if (oldWidget.configuration.notFullscreen != configuration.notFullscreen &&
         !DanmakuOptions.sameFontScale) {
       _controller?.updateOption(
-        DanmakuOptions.get(notFullscreen: widget.notFullscreen),
+        DanmakuOptions.get(notFullscreen: configuration.notFullscreen),
       );
     }
   }
@@ -93,7 +111,7 @@ class _PlDanmakuState extends State<PlDanmaku> {
       return;
     }
 
-    if (!playerController.showDanmaku && !widget.isPipMode) {
+    if (!playerController.showDanmaku && !configuration.isPipMode) {
       return;
     }
 
@@ -161,6 +179,9 @@ class _PlDanmakuState extends State<PlDanmaku> {
       ..removePositionListener(videoPositionListen)
       ..removeStatusLister(playerListener);
     _plDanmakuController.dispose();
+    if (identical(playerController.danmakuController, _controller)) {
+      playerController.danmakuController = null;
+    }
     _controller = null;
     super.dispose();
   }
@@ -168,7 +189,7 @@ class _PlDanmakuState extends State<PlDanmaku> {
   @override
   Widget build(BuildContext context) {
     final option = DanmakuOptions.get(
-      notFullscreen: widget.notFullscreen,
+      notFullscreen: configuration.notFullscreen,
       speed: playerController.playbackSpeed,
     );
     return Obx(
@@ -182,7 +203,7 @@ class _PlDanmakuState extends State<PlDanmaku> {
             playerController.danmakuController = _controller = e;
           },
           option: option,
-          size: widget.size,
+          size: configuration.size,
         ),
       ),
     );

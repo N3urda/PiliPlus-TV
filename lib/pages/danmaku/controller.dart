@@ -29,14 +29,16 @@ class PlDanmakuController {
   final Map<int, List<DanmakuElem>> _dmSegMap = HashMap();
   // 已请求的段落标记
   late final Set<int> _requestedSeg = HashSet();
+  bool _disposed = false;
 
   void dispose() {
+    _disposed = true;
     _dmSegMap.clear();
     _requestedSeg.clear();
   }
 
   Future<void> queryDanmaku(int segmentIndex) async {
-    if (_isFileSource) {
+    if (_disposed || _isFileSource) {
       return;
     }
     if (_requestedSeg.contains(segmentIndex)) {
@@ -47,6 +49,7 @@ class PlDanmakuController {
       cid: _cid,
       segmentIndex: segmentIndex + 1,
     );
+    if (_disposed) return;
 
     if (res case Success(:final response)) {
       if (response.state == 1) {
@@ -59,7 +62,7 @@ class PlDanmakuController {
   }
 
   void handleDanmaku(List<DanmakuElem> elems) {
-    if (elems.isEmpty) return;
+    if (_disposed || elems.isEmpty) return;
     final uniques = HashMap<String, DanmakuElem>();
 
     final filters = _plPlayerController.filters;
@@ -91,6 +94,7 @@ class PlDanmakuController {
   }
 
   List<DanmakuElem>? getCurrentDanmaku(int progress) {
+    if (_disposed) return null;
     if (_isFileSource) {
       initFileDmIfNeeded();
     } else {
@@ -106,7 +110,7 @@ class PlDanmakuController {
   bool _fileDmLoaded = false;
 
   void initFileDmIfNeeded() {
-    if (_fileDmLoaded) return;
+    if (_disposed || _fileDmLoaded) return;
     _fileDmLoaded = true;
     _initFileDm();
   }
@@ -122,7 +126,7 @@ class PlDanmakuController {
       );
       if (!file.existsSync()) return;
       final bytes = await file.readAsBytes();
-      if (bytes.isEmpty) return;
+      if (_disposed || bytes.isEmpty) return;
       final elem = DmSegMobileReply.fromBuffer(bytes).elems;
       handleDanmaku(elem);
     } catch (e, s) {

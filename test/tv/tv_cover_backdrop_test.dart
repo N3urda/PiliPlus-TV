@@ -14,6 +14,31 @@ ui.Image makeImage(Color color) {
   return image;
 }
 
+class _CountingCanvas extends Fake implements Canvas {
+  int images = 0;
+  int fills = 0;
+  int gradients = 0;
+
+  @override
+  void drawImageRect(ui.Image image, Rect src, Rect dst, Paint paint) {
+    images++;
+  }
+
+  @override
+  void drawColor(Color color, BlendMode blendMode) {
+    fills++;
+  }
+
+  @override
+  void drawRect(Rect rect, Paint paint) {
+    if (paint.shader != null) {
+      gradients++;
+    } else {
+      fills++;
+    }
+  }
+}
+
 void main() {
   testWidgets('rapid cover changes only load the settled cover', (
     tester,
@@ -139,6 +164,106 @@ void main() {
     await tester.pumpAndSettle();
     expect(image.debugDisposed, isTrue);
     expect(requests, 2);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('steady and fading frames only draw precomposed images', (
+    tester,
+  ) async {
+    Future<ui.Image> loader(String url) async => makeImage(Colors.blue);
+    Widget backdrop(String url) => MaterialApp(
+      home: TvCoverBackdrop(coverUrl: url, imageLoader: loader),
+    );
+    _CountingCanvas paintBackdrop() {
+      final widget = tester.widget<CustomPaint>(
+        find.descendant(
+          of: find.byType(TvCoverBackdrop),
+          matching: find.byType(CustomPaint),
+        ),
+      );
+      final canvas = _CountingCanvas();
+      widget.painter!.paint(canvas, const Size(1920, 1080));
+      return canvas;
+    }
+
+    await tester.pumpWidget(backdrop('https://cover.test/first.jpg'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle();
+    final steady = paintBackdrop();
+    expect(steady.images, 1);
+    expect(steady.fills, 0);
+    expect(steady.gradients, 0);
+
+    await tester.pumpWidget(backdrop('https://cover.test/second.jpg'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(milliseconds: 100));
+    final fading = paintBackdrop();
+    expect(fading.images, 2);
+    expect(fading.fills, 0);
+    expect(fading.gradients, 0);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('backgrounding frees covers and resumes with the latest cover', (
+    tester,
+  ) async {
+    final images = <ui.Image>[];
+    final requested = <String>[];
+    Future<ui.Image> loader(String url) async {
+      requested.add(url);
+      final image = makeImage(Colors.blue);
+      images.add(image);
+      return image;
+    }
+
+    Widget backdrop(String url) => MaterialApp(
+      home: TvCoverBackdrop(coverUrl: url, imageLoader: loader),
+    );
+
+    await tester.pumpWidget(backdrop('https://cover.test/first.jpg'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    expect(images.single.debugDisposed, isTrue);
+    await tester.pumpWidget(backdrop('https://cover.test/second.jpg'));
+    await tester.pump(const Duration(seconds: 1));
+    expect(requested, ['https://cover.test/first.jpg']);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle();
+    expect(requested.last, 'https://cover.test/second.jpg');
+    expect(images.last.debugDisposed, isFalse);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('memory pressure discards late image work without reloading', (
+    tester,
+  ) async {
+    final pending = Completer<ui.Image>();
+    var requests = 0;
+    Future<ui.Image> loader(String url) {
+      requests++;
+      return pending.future;
+    }
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TvCoverBackdrop(
+          coverUrl: 'https://cover.test/pending.jpg',
+          imageLoader: loader,
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+    tester.binding.handleMemoryPressure();
+    final image = makeImage(Colors.blue);
+    pending.complete(image);
+    await tester.pump(const Duration(seconds: 1));
+    expect(image.debugDisposed, isTrue);
+    expect(requests, 1);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

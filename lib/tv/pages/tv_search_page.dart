@@ -3,12 +3,19 @@ import 'package:PiliPlus/http/search.dart';
 import 'package:PiliPlus/models/common/search/search_type.dart';
 import 'package:PiliPlus/models/search/result.dart';
 import 'package:PiliPlus/tv/widgets/tv_action.dart';
+import 'package:PiliPlus/tv/tv_video_entry.dart';
 import 'package:PiliPlus/tv/widgets/tv_search_results.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:get/get.dart';
 
 class TvSearchPage extends StatefulWidget {
-  const TvSearchPage({super.key});
+  const TvSearchPage({super.key, this.searchLoader});
+
+  final Future<LoadingState<SearchVideoData>> Function(
+    String keyword,
+    int page,
+  )?
+  searchLoader;
 
   @override
   State<TvSearchPage> createState() => _TvSearchPageState();
@@ -17,7 +24,9 @@ class TvSearchPage extends StatefulWidget {
 class _TvSearchPageState extends State<TvSearchPage> {
   final textController = TextEditingController();
   final firstResultFocus = FocusNode();
-  List<SearchVideoItemModel> results = [];
+  List<TvVideoEntry> results = [];
+  final seen = <String>{};
+  bool hasMore = true;
   String keyword = '';
   String? error;
   bool loading = false;
@@ -33,11 +42,13 @@ class _TvSearchPageState extends State<TvSearchPage> {
 
   Future<void> search({bool more = false}) async {
     final query = textController.text.trim();
-    if (query.isEmpty || loading) return;
+    if (query.isEmpty || loading || (more && !hasMore)) return;
     if (!more) {
       keyword = query;
       page = 0;
       results = [];
+      seen.clear();
+      hasMore = true;
     }
     setState(() {
       loading = true;
@@ -45,16 +56,28 @@ class _TvSearchPageState extends State<TvSearchPage> {
     });
     try {
       final nextPage = page + 1;
-      final response = await SearchHttp.searchByType<SearchVideoData>(
-        searchType: SearchType.video,
-        keyword: keyword,
-        page: nextPage,
-        onSuccess: (_) {},
-      );
+      final response =
+          await (widget.searchLoader?.call(keyword, nextPage) ??
+              SearchHttp.searchByType<SearchVideoData>(
+                searchType: SearchType.video,
+                keyword: keyword,
+                page: nextPage,
+                onSuccess: (_) {},
+              ));
       if (!mounted) return;
       if (response case Success<SearchVideoData>(:final response)) {
         setState(() {
-          results = [...results, ...?response.list];
+          final items = response.list ?? [];
+          for (final video in items) {
+            final bvid = video.bvid;
+            if (bvid != null && bvid.startsWith('BV') && seen.add(bvid)) {
+              results.add(TvVideoEntry.fromVideo(video));
+            }
+          }
+          hasMore =
+              items.isNotEmpty &&
+              (response.numResults == null ||
+                  results.length < response.numResults!);
           total = response.numResults ?? results.length;
           page = nextPage;
           loading = false;
@@ -149,6 +172,7 @@ class _TvSearchPageState extends State<TvSearchPage> {
                   results: results,
                   total: total,
                   loading: loading,
+                  hasMore: hasMore,
                   onLoadMore: () => search(more: true),
                   firstResultFocus: firstResultFocus,
                 ),

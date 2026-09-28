@@ -1,4 +1,4 @@
-import 'package:PiliPlus/models/search/result.dart';
+import 'package:PiliPlus/tv/tv_video_entry.dart';
 import 'package:PiliPlus/tv/widgets/tv_search_results.dart';
 import 'package:PiliPlus/tv/widgets/tv_video_card.dart';
 import 'package:flutter/material.dart';
@@ -15,13 +15,11 @@ void main() {
 
     final results = List.generate(
       80,
-      (index) => SearchVideoItemModel.fromJson({
-        'title': '视频 $index',
-        'bvid': 'BV$index',
-        'author': 'UP',
-        'duration': '01:00',
-        'play': index,
-      }),
+      (index) => TvVideoEntry(
+        title: '视频 $index',
+        bvid: 'BV$index',
+        owner: 'UP',
+      ),
     );
     final firstResultFocus = FocusNode();
     addTearDown(firstResultFocus.dispose);
@@ -33,6 +31,7 @@ void main() {
             results: results,
             total: results.length,
             loading: false,
+            hasMore: false,
             onLoadMore: () {},
             firstResultFocus: firstResultFocus,
           ),

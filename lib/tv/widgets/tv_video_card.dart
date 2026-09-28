@@ -1,9 +1,7 @@
-import 'package:PiliPlus/models/model_video.dart';
 import 'package:PiliPlus/tv/tv_playback.dart';
 import 'package:PiliPlus/tv/tv_video_entry.dart';
+import 'package:PiliPlus/tv/tv_thumbnail.dart';
 import 'package:PiliPlus/tv/widgets/tv_action.dart';
-import 'package:PiliPlus/utils/duration_utils.dart';
-import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:material_ui/material_ui.dart';
 
 class TvVideoCard extends StatelessWidget {
@@ -16,7 +14,7 @@ class TvVideoCard extends StatelessWidget {
     this.compact = false,
   });
 
-  final BaseVideoItemModel video;
+  final TvVideoEntry video;
   final bool autofocus;
   final FocusNode? focusNode;
   final double width;
@@ -37,8 +35,8 @@ class TvVideoCard extends StatelessWidget {
         autofocus: autofocus,
         focusNode: focusNode,
         onPressed: () {
-          if (bvid != null && bvid.isNotEmpty) {
-            TvPlayback.open(TvVideoEntry.fromVideo(video));
+          if (bvid.isNotEmpty) {
+            TvPlayback.open(video);
           }
         },
         child: Column(
@@ -54,14 +52,16 @@ class TvVideoCard extends StatelessWidget {
                   children: [
                     url == null
                         ? const Icon(Icons.movie_outlined, size: 64)
-                        : Image.network(
-                            url,
+                        : Image(
+                            image: tvThumbnailProvider(
+                              NetworkImage(url),
+                              maxWidth: 560,
+                            ),
                             fit: BoxFit.cover,
-                            cacheWidth: 560,
                             errorBuilder: (_, _, _) =>
                                 const Icon(Icons.movie_outlined, size: 64),
                           ),
-                    if (video.duration > 0)
+                    if (video.durationLabel case final duration?)
                       Positioned(
                         right: 6,
                         bottom: 6,
@@ -76,7 +76,7 @@ class TvVideoCard extends StatelessWidget {
                               vertical: 2,
                             ),
                             child: Text(
-                              DurationUtils.formatDuration(video.duration),
+                              duration,
                               style: const TextStyle(fontSize: 12),
                             ),
                           ),
@@ -99,9 +99,8 @@ class TvVideoCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               [
-                video.owner.name,
-                if (video.stat.view case final views? when views > 0)
-                  '${NumUtils.numFormat(views)}播放',
+                video.owner,
+                video.viewsLabel,
               ].where((value) => value != null && value.isNotEmpty).join(' · '),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

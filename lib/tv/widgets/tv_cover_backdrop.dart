@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-/// A cover-colored backdrop whose blur is rendered once at thumbnail size.
+/// A cover-colored backdrop precomposed once at thumbnail size.
 class TvCoverBackdrop extends StatefulWidget {
   const TvCoverBackdrop({
     super.key,
@@ -21,7 +21,7 @@ class TvCoverBackdrop extends StatefulWidget {
 }
 
 class _TvCoverBackdropState extends State<TvCoverBackdrop>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _fade = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 400),
@@ -35,11 +35,48 @@ class _TvCoverBackdropState extends State<TvCoverBackdrop>
   int _generation = 0;
   bool _ready = false;
   bool _loading = false;
+  bool _backgrounded = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    _backgrounded =
+        lifecycle == AppLifecycleState.paused ||
+        lifecycle == AppLifecycleState.hidden ||
+        lifecycle == AppLifecycleState.detached;
     _scheduleCover();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      _backgrounded = true;
+      _releaseCovers();
+    } else if (state == AppLifecycleState.resumed && _backgrounded) {
+      _backgrounded = false;
+      _scheduleCover();
+    }
+  }
+
+  @override
+  void didHaveMemoryPressure() => _releaseCovers();
+
+  void _releaseCovers() {
+    _generation++;
+    _debounce?.cancel();
+    _ready = false;
+    _fade.stop();
+    setState(() {
+      _previous?.dispose();
+      _current?.dispose();
+      _previous = null;
+      _current = null;
+      _shownUrl = null;
+    });
   }
 
   @override
@@ -58,6 +95,7 @@ class _TvCoverBackdropState extends State<TvCoverBackdrop>
         ? 'https:$url'
         : url;
     _ready = false;
+    if (_backgrounded) return;
     _debounce = Timer(const Duration(milliseconds: 180), () {
       _ready = true;
       unawaited(_loadNext());
@@ -67,7 +105,9 @@ class _TvCoverBackdropState extends State<TvCoverBackdrop>
   Future<void> _loadNext() async {
     // Serial loading and finishing the current fade bound image ownership and
     // avoid repeated blur work while a remote button is held down.
-    if (!mounted || !_ready || _loading || _fade.isAnimating) return;
+    if (!mounted || _backgrounded || !_ready || _loading || _fade.isAnimating) {
+      return;
+    }
     _ready = false;
     final url = _desiredUrl;
     if (url == _shownUrl) return;
@@ -114,6 +154,7 @@ class _TvCoverBackdropState extends State<TvCoverBackdrop>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _debounce?.cancel();
     _generation++;
     _fade.dispose();
@@ -183,21 +224,30 @@ Future<ui.Image> _loadBlurredCover(String url) async {
       Size(source.width.toDouble(), source.height.toDouble()),
       const Size(256, 144),
     );
-    canvas.drawImageRect(
-      source,
-      Alignment.center.inscribe(
-        fitted.source,
-        Rect.fromLTWH(0, 0, source.width.toDouble(), source.height.toDouble()),
-      ),
-      const Rect.fromLTWH(0, 0, 256, 144),
-      Paint()
-        ..filterQuality = FilterQuality.low
-        ..imageFilter = ui.ImageFilter.blur(
-          sigmaX: 18,
-          sigmaY: 18,
-          tileMode: TileMode.clamp,
+    canvas
+      ..drawColor(const Color(0xFF090B10), BlendMode.src)
+      ..drawImageRect(
+        source,
+        Alignment.center.inscribe(
+          fitted.source,
+          Rect.fromLTWH(
+            0,
+            0,
+            source.width.toDouble(),
+            source.height.toDouble(),
+          ),
         ),
-    );
+        const Rect.fromLTWH(0, 0, 256, 144),
+        Paint()
+          ..filterQuality = FilterQuality.low
+          ..color = const Color.fromRGBO(255, 255, 255, 0.82)
+          ..imageFilter = ui.ImageFilter.blur(
+            sigmaX: 18,
+            sigmaY: 18,
+            tileMode: TileMode.clamp,
+          ),
+      );
+    _drawReadabilityGradients(canvas, const Size(256, 144));
     final picture = recorder.endRecording();
     try {
       return await picture.toImage(width, height);
@@ -227,7 +277,6 @@ class _CoverBackdropPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final bounds = Offset.zero & size;
-    canvas.drawColor(const Color(0xFF090B10), BlendMode.src);
     final progress = Curves.easeInOut.transform(fade.value);
     void drawCover(ui.Image? image, double opacity) {
       if (image == null || opacity <= 0) return;
@@ -237,44 +286,58 @@ class _CoverBackdropPainter extends CustomPainter {
         image: image,
         fit: BoxFit.cover,
         filterQuality: FilterQuality.low,
-        opacity: opacity * 0.82,
+        opacity: opacity,
       );
     }
 
-    drawCover(previous, 1 - progress);
-    drawCover(current, progress);
-    canvas
-      ..drawRect(
-        bounds,
-        Paint()
-          ..shader = ui.Gradient.linear(
-            Offset.zero,
-            Offset(size.width, 0),
-            [
-              const Color(0x90060910),
-              const Color(0x18060910),
-              const Color(0x34060910),
-            ],
-            [0, 0.44, 1],
-          ),
-      )
-      ..drawRect(
-        bounds,
-        Paint()
-          ..shader = ui.Gradient.linear(
-            Offset.zero,
-            Offset(0, size.height),
-            [
-              const Color(0x29060910),
-              const Color(0x10060910),
-              const Color(0xBC060910),
-            ],
-            [0, 0.38, 1],
-          ),
-      );
+    if (current != null && progress >= 1) {
+      drawCover(current, 1);
+    } else if (previous != null && current != null) {
+      // Both precomposed images are opaque: one image establishes the base,
+      // then the incoming image blends over it without full-screen gradients.
+      drawCover(previous, 1);
+      drawCover(current, progress);
+    } else {
+      canvas.drawColor(const Color(0xFF090B10), BlendMode.src);
+      drawCover(previous, 1 - progress);
+      drawCover(current, progress);
+    }
   }
 
   @override
   bool shouldRepaint(_CoverBackdropPainter oldDelegate) =>
       oldDelegate.current != current || oldDelegate.previous != previous;
+}
+
+void _drawReadabilityGradients(Canvas canvas, Size size) {
+  final bounds = Offset.zero & size;
+  canvas
+    ..drawRect(
+      bounds,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          Offset.zero,
+          Offset(size.width, 0),
+          [
+            const Color(0x90060910),
+            const Color(0x18060910),
+            const Color(0x34060910),
+          ],
+          [0, 0.44, 1],
+        ),
+    )
+    ..drawRect(
+      bounds,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          Offset.zero,
+          Offset(0, size.height),
+          [
+            const Color(0x29060910),
+            const Color(0x10060910),
+            const Color(0xBC060910),
+          ],
+          [0, 0.38, 1],
+        ),
+    );
 }

@@ -229,7 +229,11 @@ class _TvHomePageState extends State<TvHomePage> {
 
       if (!mounted || !Accounts.main.isLogin) return;
       setState(() {
-        following = more ? [...following, ...collected] : collected;
+        if (more) {
+          following.addAll(collected);
+        } else {
+          following = collected;
+        }
         followingOffset = offset;
         followingHasMore = hasMore;
         loadingFollowing = false;

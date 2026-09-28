@@ -1,4 +1,5 @@
 import 'package:PiliPlus/tv/tv_video_entry.dart';
+import 'package:PiliPlus/tv/tv_thumbnail.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/services.dart';
@@ -149,8 +150,9 @@ class _TvCinematicVideoCardState extends State<TvCinematicVideoCard> {
         ].where((s) => s.isNotEmpty).join('，'),
         child: GestureDetector(
           onTap: widget.onOpen,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
+          // Remote focus responds immediately without repainting the cover and
+          // its text shadows on every tick of a decoration transition.
+          child: Container(
             decoration: BoxDecoration(
               color: const Color(0xCC15171B),
               borderRadius: BorderRadius.circular(8),
@@ -175,10 +177,12 @@ class _TvCinematicVideoCardState extends State<TvCinematicVideoCard> {
                       children: [
                         const ColoredBox(color: Color(0xFF343941)),
                         if (imageUrl != null)
-                          Image.network(
-                            imageUrl,
+                          Image(
+                            image: tvThumbnailProvider(
+                              NetworkImage(imageUrl),
+                              maxWidth: 360,
+                            ),
                             fit: BoxFit.cover,
-                            cacheWidth: 420,
                             errorBuilder: (_, _, _) => const Icon(
                               Icons.movie_outlined,
                               size: 35,
